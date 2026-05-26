@@ -1,4 +1,4 @@
-import { env, type FeatureExtractionPipeline, pipeline } from "@huggingface/transformers";
+import { env, pipeline } from "@huggingface/transformers";
 
 // Configure Transformers.js to load ONNX WASM from local extension files.
 // Use a string prefix so onnxruntime-web constructs all filenames itself.
@@ -14,21 +14,25 @@ if (env.backends?.onnx) {
 // Disable remote model loading — we want it to download once and cache.
 env.allowLocalModels = false;
 
-let embeddingPipeline: FeatureExtractionPipeline | null = null;
-let initPromise: Promise<FeatureExtractionPipeline> | null = null;
+// biome-ignore lint/suspicious/noExplicitAny: Registry can contain various pipeline types
+const pipelines: Record<string, any> = {};
+// biome-ignore lint/suspicious/noExplicitAny: Registry can contain various pipeline types
+const initPromises: Record<string, Promise<any>> = {};
 
-async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
-	if (embeddingPipeline) return embeddingPipeline;
-	if (initPromise) return initPromise;
+// biome-ignore lint/suspicious/noExplicitAny: Generic task pipeline return type
+async function getPipeline(task: string, modelId: string): Promise<any> {
+	const cacheKey = `${task}:${modelId}`;
+	if (pipelines[cacheKey]) return pipelines[cacheKey];
+	if (initPromises[cacheKey]) return initPromises[cacheKey];
 
-	initPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
+	initPromises[cacheKey] = pipeline(task, modelId, {
 		dtype: "q8",
 		device: "wasm",
 	});
 
-	embeddingPipeline = await initPromise;
-	initPromise = null;
-	return embeddingPipeline;
+	pipelines[cacheKey] = await initPromises[cacheKey];
+	delete initPromises[cacheKey];
+	return pipelines[cacheKey];
 }
 
 // Listen for messages from the service worker
@@ -37,7 +41,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 		(async () => {
 			try {
 				const startTime = Date.now();
-				const pipe = await getEmbeddingPipeline();
+				const pipe = await getPipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
 				const output = await pipe(message.text, { pooling: "mean", normalize: true });
 				const duration = Date.now() - startTime;
 				console.log(`[offscreen] Embedding generated in ${duration}ms`);
