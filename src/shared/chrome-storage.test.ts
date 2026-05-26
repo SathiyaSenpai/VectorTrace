@@ -10,7 +10,7 @@ import type { Schema } from "./types";
 
 const mockStorage: Record<string, unknown> = {};
 
-(globalThis as any).chrome = {
+(globalThis as typeof globalThis & { chrome: typeof chrome }).chrome = {
 	storage: {
 		local: {
 			get: vi.fn().mockImplementation((keys) => {
