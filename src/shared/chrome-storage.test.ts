@@ -8,10 +8,10 @@ import {
 } from "./chrome-storage";
 import type { Schema } from "./types";
 
-// Mock the chrome extension storage APIs
 const mockStorage: Record<string, unknown> = {};
 
-global.chrome = {
+// biome-ignore lint/suspicious/noExplicitAny: Mocking chrome global in NodeJS environment
+(globalThis as any).chrome = {
 	storage: {
 		local: {
 			get: vi.fn().mockImplementation((keys) => {
@@ -130,7 +130,7 @@ describe("chrome-storage wrapper", () => {
 		expect(updated).not.toBeNull();
 		expect(updated?.fields[0].textContent).toBe("Updated Hello");
 		expect(updated?.fields[0].cssSelector).toBe("h2");
-		expect(updated?.fields[0].xpathSelector).toBe("//h1"); // unchanged
+		expect(updated?.fields[0].xpathSelector).toBe("//h1");
 		expect(updated?.updatedAt).toBeGreaterThanOrEqual(timestampBefore);
 	});
 
