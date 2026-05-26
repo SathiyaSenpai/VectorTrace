@@ -1,17 +1,21 @@
-# VectorTrace Development Log
+# VectorTrace Progress Log
 
-## [2026-05-26] - Day 1: Scaffolding and Directory Resolution
+## Project Accomplishments
 
-### Accomplishments
-- Initialized WXT project with React template.
-- Configured dependencies (`@huggingface/transformers`, `idb`, `tailwindcss@3.4.19`, `@biomejs/biome`, `vitest`).
-- Migrated linter configurations to Biome v2.4.15 structure, fixing unused React import rules and non-null assertion styling.
-- Defined key scraping and similarity data types in `src/shared/types.ts`.
-- Created a robust, typed local storage utility wrapper in `src/shared/chrome-storage.ts`.
-- Built a comprehensive Vitest unit test suite inside `src/shared/chrome-storage.test.ts` to mock and verify Chrome storage operations.
-- Updated extension manifest with the missing `tabs` permission required for active URL query logic.
-- Revised roadmap docs to adopt a free Firefox-first deployment model (mitigating the $5 developer fee blocker), clarified E2E environment constraints, added GitHub Sponsors/Namecheap Student Pack alignment, and standardized references to the Antigravity developer environment.
-- Installed `@types/chrome` to resolve TypeScript compilation errors for the global `chrome` namespace.
-- Implemented `ElementPicker` class in `src/content/element-picker.ts` supporting visual hover highlight overlay, cursor crosshairs, dynamic tooltip element detailing, click-event capturing with event propagation prevention, and ESC key cancellation.
-- Updated the content script entry point `src/entrypoints/content.ts` to initialize `ElementPicker` and listen for the `START_SELECTION` message.
-- Wired the selection callback to emit the `FIELD_SELECTED` IPC message with the selected element's trimmed `textContent` and placeholders.
+- **Scaffolding**: Initialized WXT project template with React and Tailwind CSS.
+- **Dependencies**: Installed `@huggingface/transformers`, `idb`, and testing packages.
+- **Data Models**: Defined database structures and messages in `types.ts`.
+- **Chrome Storage**: Created typed CRUD storage helpers with unit tests.
+- **Documentation**: Updated roadmap docs for a Firefox-first deployment.
+- **Global Mocking**: Resolved test linter errors using type intersections instead of `any`.
+- **Element Picker**: Built a DOM hover overlay with a tag tooltip and Escape cancellation.
+- **Content Script**: Activated picker on `START_SELECTION` and emitted selected results.
+- **CSS Selectors**: Generated robust paths prioritizing IDs, data attributes, and `:nth-of-type` siblings.
+- **XPath Selectors**: Built tag-indexed paths with case-sensitive SVG and cross-origin iframe checks.
+- **Length Guards**: Limited all CSS and XPath selectors to 500 characters.
+- **Unit Testing**: Exchanged Vitest environment to `jsdom` to test selector generation correctness.
+- **ONNX Bundle Plugin**: Created a Vite bundler plugin that automatically copies WebAssembly files (`.wasm`) from `onnxruntime-web` to the build output.
+- **WXT Config**: Configured the ONNX bundler plugin and declared `transformers/*` web-accessible resources.
+- **Embedding Pipeline**: Created a lazy-initializing embedding pipeline module using `all-MiniLM-L6-v2` with local WASM overrides for MV3 CSP.
+- **Similarity Scoring**: Built cosine similarity computation and candidate ranking utilities with unit tests.
+- **Message Routing**: Integrated service worker message handlers to process embedding generation, similarity matching, and field upserts to storage.
