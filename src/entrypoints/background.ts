@@ -2,6 +2,7 @@ import { generateEmbedding } from "../background/embedding-pipeline";
 import { rankCandidates } from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
 import { getFieldEmbedding, saveFieldEmbedding } from "../shared/idb-store";
+import { sendMessageWithRetry } from "../shared/messaging";
 import type { MessageType } from "../shared/types";
 
 export default defineBackground({
@@ -109,9 +110,9 @@ async function handleMessage(
 			}
 
 			console.log("[background] Requesting ENUMERATE_PAGE from content script...");
-			const response = await chrome.tabs.sendMessage(tab.id, {
+			const response = (await sendMessageWithRetry(tab.id, {
 				type: "ENUMERATE_PAGE",
-			});
+			})) as { candidates?: unknown[] } | undefined;
 
 			const candidates = response?.candidates;
 			if (!candidates || !Array.isArray(candidates)) {

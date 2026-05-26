@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ExtractionResult, MessageType } from "../../shared/types";
+import { sendMessageWithRetry } from "../utils/messaging";
 
 export function useExtraction() {
 	const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
@@ -27,11 +28,11 @@ export function useExtraction() {
 				throw new Error("No active web page tab found");
 			}
 
-			// Send message to content script of the active tab
-			const response = await chrome.tabs.sendMessage(tab.id, {
+			// Send message to content script of the active tab using retry mechanism
+			const response = (await sendMessageWithRetry(tab.id, {
 				type: "RUN_EXTRACTION",
 				schemaId,
-			});
+			})) as { error?: string; result?: ExtractionResult } | undefined;
 
 			if (response?.error) {
 				throw new Error(response.error);

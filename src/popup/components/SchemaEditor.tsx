@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ExtractionResult, Schema } from "../../shared/types";
+import { sendMessageWithRetry } from "../utils/messaging";
 import { FieldCard } from "./FieldCard";
 
 interface SchemaEditorProps {
@@ -59,7 +60,7 @@ export function SchemaEditor({
 			setStatusMessage("Click an element on the page...");
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 			if (tab?.id) {
-				await chrome.tabs.sendMessage(tab.id, {
+				await sendMessageWithRetry(tab.id, {
 					type: "START_SELECTION",
 					schemaId: schema.schemaId,
 				});
@@ -94,10 +95,10 @@ export function SchemaEditor({
 			setStatusMessage("Running extraction...");
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 			if (tab?.id) {
-				const response = await chrome.tabs.sendMessage(tab.id, {
+				const response = (await sendMessageWithRetry(tab.id, {
 					type: "RUN_EXTRACTION",
 					schemaId: schema.schemaId,
-				});
+				})) as { error?: string; result?: ExtractionResult } | undefined;
 				if (response?.result) {
 					setExtractionResult(response.result);
 					setStatusMessage("Extraction complete");
