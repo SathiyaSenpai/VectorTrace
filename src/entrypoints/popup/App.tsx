@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ExtractionResults } from "../../popup/components/ExtractionResults";
 import { SchemaEditor } from "../../popup/components/SchemaEditor";
 import { useSchema } from "../../popup/hooks/useSchema";
 import type { ExtractionResult } from "../../shared/types";
@@ -15,6 +16,7 @@ export default function App() {
 		removeField,
 	} = useSchema();
 
+	const [view, setView] = useState<"EDITOR" | "RESULTS">("EDITOR");
 	const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
 
 	return (
@@ -40,6 +42,9 @@ export default function App() {
 					<div className="w-7 h-7 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
 					<span className="text-xs text-gray-500 font-medium tracking-wide">Loading Schema...</span>
 				</div>
+			) : view === "RESULTS" && extractionResult ? (
+				/* Extraction Results Screen */
+				<ExtractionResults result={extractionResult} onBack={() => setView("EDITOR")} />
 			) : (
 				/* Editor / Schema View */
 				<SchemaEditor
@@ -52,6 +57,7 @@ export default function App() {
 					removeField={removeField}
 					extractionResult={extractionResult}
 					setExtractionResult={setExtractionResult}
+					onShowResults={() => setView("RESULTS")}
 				/>
 			)}
 		</div>
