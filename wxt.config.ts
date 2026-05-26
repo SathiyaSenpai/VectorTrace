@@ -7,7 +7,7 @@ export default defineConfig({
 	manifest: {
 		name: "VectorTrace",
 		description: "Point-and-click web scraper with semantic change detection",
-		permissions: ["activeTab", "storage", "scripting"],
+		permissions: ["activeTab", "storage", "scripting", "tabs"],
 		host_permissions: ["<all_urls>"],
 	},
 });
