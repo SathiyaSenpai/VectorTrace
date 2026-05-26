@@ -1,56 +1,81 @@
-import { env, type FeatureExtractionPipeline, pipeline } from "@huggingface/transformers";
-
-// Configure Transformers.js to load ONNX WASM from local extension files.
-if (env.backends?.onnx) {
-	env.backends.onnx.wasm = env.backends.onnx.wasm || {};
-	// Explicitly configure single-threaded SIMD files to prevent Emscripten's threaded files from referencing 'window' or spawning workers.
-	env.backends.onnx.wasm.wasmPaths = {
-		wasm: chrome.runtime.getURL("transformers/ort-wasm-simd.wasm"),
-		mjs: chrome.runtime.getURL("transformers/ort-wasm-simd.mjs"),
-	};
-	// Disable proxying to web workers and force single-threaded execution to prevent ServiceWorkerGlobalScope dynamic import() errors.
-	env.backends.onnx.wasm.proxy = false;
-	env.backends.onnx.wasm.numThreads = 1;
-}
-
-// Disable remote model loading — we want it to download once and cache.
-env.allowLocalModels = false;
-
-let embeddingPipeline: FeatureExtractionPipeline | null = null;
-let initPromise: Promise<FeatureExtractionPipeline> | null = null;
+let creating: Promise<void> | null = null; // A global promise to avoid race conditions when creating the offscreen document
 
 /**
- * Lazy-initializes the embedding pipeline.
- * CRITICAL: Must be called in every message handler because
- * MV3 service workers can be suspended at any time, destroying
- * the pipeline instance.
+ * Ensures the offscreen document is created and active.
  */
-export async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
-	if (embeddingPipeline) return embeddingPipeline;
+async function setupOffscreenDocument(): Promise<void> {
+	const offscreenUrl = chrome.runtime.getURL("offscreen.html");
 
-	// Prevent multiple parallel initializations
-	if (initPromise) return initPromise;
+	// Check if the document already exists
+	// @ts-expect-error
+	if (typeof chrome.offscreen.getContexts === "function") {
+		// @ts-expect-error
+		const contexts = await chrome.offscreen.getContexts({
+			contextTypes: ["OFFSCREEN_DOCUMENT"],
+			documentUrls: [offscreenUrl],
+		});
+		if (contexts.length > 0) return;
+	} else {
+		// Fallback checking open window clients
+		const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
+		for (const client of clients) {
+			if (client.url === offscreenUrl) return;
+		}
+	}
 
-	initPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-		dtype: "q8", // quantized for smaller size
-		device: "wasm",
+	if (creating) {
+		await creating;
+		return;
+	}
+
+	creating = chrome.offscreen.createDocument({
+		url: "offscreen.html",
+		reasons: ["DOM_PARSER" as chrome.offscreen.Reason],
+		justification: "Run WebAssembly embedding pipeline in window/document context",
 	});
 
-	embeddingPipeline = await initPromise;
-	initPromise = null;
-	return embeddingPipeline;
+	await creating;
+	creating = null;
 }
 
 /**
- * Generate a 384-dimensional embedding for the given text.
- * Returns a regular number[] array (not Float32Array) for JSON serialization.
+ * Delegate embedding generation to the Offscreen Document.
+ * This completely keeps the heavy WASM module execution and window dependencies out of the service worker.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
 	const startTime = Date.now();
-	console.log(`[embedding-pipeline] Generating embedding for text: "${text.substring(0, 30)}..."`);
-	const pipe = await getEmbeddingPipeline();
-	const output = await pipe(text, { pooling: "mean", normalize: true });
-	const duration = Date.now() - startTime;
-	console.log(`[embedding-pipeline] Embedding generated in ${duration}ms`);
-	return Array.from(output.data as Float32Array);
+	console.log(
+		`[embedding-pipeline] Requesting embedding from offscreen for: "${text.substring(0, 30)}..."`,
+	);
+
+	await setupOffscreenDocument();
+
+	return new Promise((resolve, reject) => {
+		chrome.runtime.sendMessage(
+			{
+				type: "OFFSCREEN_GENERATE_EMBEDDING",
+				text,
+			},
+			(response) => {
+				const duration = Date.now() - startTime;
+				if (chrome.runtime.lastError) {
+					console.error(
+						"[embedding-pipeline] runtime.sendMessage error:",
+						chrome.runtime.lastError,
+					);
+					return reject(new Error(chrome.runtime.lastError.message));
+				}
+				if (response?.error) {
+					console.error("[embedding-pipeline] offscreen script returned error:", response.error);
+					return reject(new Error(response.error));
+				}
+				if (!response?.embedding) {
+					console.error("[embedding-pipeline] offscreen returned invalid response:", response);
+					return reject(new Error("No embedding returned from offscreen document"));
+				}
+				console.log(`[embedding-pipeline] Offscreen embedding received in ${duration}ms`);
+				resolve(response.embedding);
+			},
+		);
+	});
 }
