@@ -133,10 +133,12 @@ export function SchemaEditor({
 	const subTextColor = isSakura ? "text-[#8a7272]" : "text-gray-500";
 
 	return (
-		<div className={`w-[380px] min-h-[400px] flex flex-col font-sans select-none ${mainBgClass}`}>
+		<div
+			className={`w-[380px] min-h-[400px] flex flex-col font-sans select-none transition-colors duration-300 ease-in-out ${mainBgClass}`}
+		>
 			{/* Header / URL bar */}
 			<div
-				className={`px-4 py-2 border-b flex items-center justify-between text-xs select-all ${headerBarClass}`}
+				className={`px-4 py-2 border-b flex items-center justify-between text-xs select-all transition-colors duration-300 ease-in-out ${headerBarClass}`}
 			>
 				<span className="truncate flex items-center gap-1.5 max-w-[280px]">
 					<svg
