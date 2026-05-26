@@ -133,13 +133,23 @@ export default function App() {
 						</div>
 						<h1 className="text-sm font-black tracking-wider text-white">VECTORTRACE</h1>
 					</div>
-					<span
-						className={`text-[9px] font-mono tracking-widest uppercase ${
-							isSakura ? "text-[#a04e5d]" : "text-blue-200"
-						}`}
-					>
-						v0.1.0
-					</span>
+					<div className="flex items-center gap-2">
+						<span
+							className={`text-[9px] font-mono tracking-widest uppercase ${
+								isSakura ? "text-[#a04e5d]" : "text-blue-200"
+							}`}
+						>
+							v0.1.0
+						</span>
+						<button
+							type="button"
+							onClick={() => chrome.runtime.openOptionsPage()}
+							className="text-white/80 hover:text-white transition cursor-pointer p-0.5 rounded hover:bg-white/10 text-xs leading-none"
+							title="Open Settings"
+						>
+							⚙️
+						</button>
+					</div>
 				</div>
 				<span
 					className={`text-[10px] font-semibold mt-0.5 ${
