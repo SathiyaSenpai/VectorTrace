@@ -36,7 +36,7 @@ export function onnxBundlePlugin(): Plugin {
 			let copiedCount = 0;
 
 			for (const file of files) {
-				if (file.endsWith(".wasm")) {
+				if (file.endsWith(".wasm") || file.endsWith(".mjs")) {
 					const srcPath = path.join(srcDir, file);
 					const destPath = path.join(targetDir, file);
 					await fs.promises.copyFile(srcPath, destPath);

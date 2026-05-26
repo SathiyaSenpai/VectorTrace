@@ -16,6 +16,9 @@ export default defineConfig({
 				matches: ["<all_urls>"],
 			},
 		],
+		content_security_policy: {
+			extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* https://huggingface.co https://cdn-lfs.huggingface.co https://*.huggingface.co https://*.hf.co https://*.amazonaws.com https://*.cloudfront.net;",
+		},
 	},
 	vite: () => ({
 		plugins: [onnxBundlePlugin()],

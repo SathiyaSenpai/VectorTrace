@@ -1,6 +1,7 @@
 import { generateEmbedding } from "../background/embedding-pipeline";
 import { rankCandidates } from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
+import { saveFieldEmbedding } from "../shared/idb-store";
 import type { MessageType } from "../shared/types";
 
 export default defineBackground(() => {
@@ -49,6 +50,9 @@ async function handleMessage(
 				embedding,
 			};
 
+			// Save the complete field embedding to IndexedDB
+			await saveFieldEmbedding(completeField);
+
 			// Load schema from chrome.storage.local (or initialize if not present)
 			let schema = await getSchema(message.field.schemaId);
 			if (!schema) {
@@ -79,7 +83,7 @@ async function handleMessage(
 			}
 			schema.updatedAt = Date.now();
 
-			// Save back using our chrome-storage wrapper
+			// Save back using our chrome-storage wrapper (which automatically strips embeddings for storage limits)
 			await saveSchema(schema);
 			console.log(`[background] FIELD_SELECTED saved in ${Date.now() - start}ms`);
 			sendResponse({ success: true });

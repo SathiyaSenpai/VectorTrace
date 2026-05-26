@@ -2,6 +2,7 @@ export interface FieldDefinition {
 	fieldId: string; // crypto.randomUUID()
 	schemaId: string; // parent schema reference
 	label: string; // user-given name like "Price" or "Title"
+	url: string; // page URL where field was defined
 	cssSelector: string; // generated CSS selector
 	xpathSelector: string; // XPath fallback
 	textContent: string; // extracted text at definition time

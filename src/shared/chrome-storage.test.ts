@@ -83,7 +83,11 @@ describe("chrome-storage wrapper", () => {
 		expect(chrome.storage.local.set).toHaveBeenCalledTimes(1);
 
 		const retrieved = await getSchema("test-schema-id");
-		expect(retrieved).toEqual(mockSchema);
+		const expectedSchema = {
+			...mockSchema,
+			fields: mockSchema.fields.map((f) => ({ ...f, embedding: [] })),
+		};
+		expect(retrieved).toEqual(expectedSchema);
 	});
 
 	it("should return null if schema is not found", async () => {
@@ -105,8 +109,16 @@ describe("chrome-storage wrapper", () => {
 
 		const schemas = await getAllSchemas();
 		expect(schemas).toHaveLength(2);
-		expect(schemas).toContainEqual(mockSchema);
-		expect(schemas).toContainEqual(secondSchema);
+		const expectedFirst = {
+			...mockSchema,
+			fields: mockSchema.fields.map((f) => ({ ...f, embedding: [] })),
+		};
+		const expectedSecond = {
+			...secondSchema,
+			fields: secondSchema.fields.map((f) => ({ ...f, embedding: [] })),
+		};
+		expect(schemas).toContainEqual(expectedFirst);
+		expect(schemas).toContainEqual(expectedSecond);
 	});
 
 	it("should delete a schema correctly", async () => {
