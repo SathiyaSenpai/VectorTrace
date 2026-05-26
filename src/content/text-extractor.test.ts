@@ -8,7 +8,7 @@ describe("text-extractor engine", () => {
 	});
 
 	describe("extractFields", () => {
-		it("should extract field using CSS selector", () => {
+		it("should extract field using CSS selector", async () => {
 			document.body.innerHTML = `<h1 class="title">Hello World</h1>`;
 			const fields = [
 				{
@@ -19,7 +19,7 @@ describe("text-extractor engine", () => {
 				},
 			];
 
-			const results = extractFields(fields);
+			const results = await extractFields(fields);
 			expect(results).toHaveLength(1);
 			expect(results[0]).toEqual({
 				fieldId: "f1",
@@ -29,7 +29,7 @@ describe("text-extractor engine", () => {
 			});
 		});
 
-		it("should fall back to XPath if CSS selector returns null", () => {
+		it("should fall back to XPath if CSS selector returns null", async () => {
 			document.body.innerHTML = `<div><span id="price">19.99</span></div>`;
 			const fields = [
 				{
@@ -40,7 +40,7 @@ describe("text-extractor engine", () => {
 				},
 			];
 
-			const results = extractFields(fields);
+			const results = await extractFields(fields);
 			expect(results).toHaveLength(1);
 			expect(results[0]).toEqual({
 				fieldId: "f2",
@@ -50,7 +50,7 @@ describe("text-extractor engine", () => {
 			});
 		});
 
-		it("should return SELECTOR_BROKEN status if both CSS and XPath fail", () => {
+		it("should return SELECTOR_BROKEN status if both CSS and XPath fail", async () => {
 			document.body.innerHTML = `<div>some content</div>`;
 			const fields = [
 				{
@@ -61,7 +61,7 @@ describe("text-extractor engine", () => {
 				},
 			];
 
-			const results = extractFields(fields);
+			const results = await extractFields(fields);
 			expect(results).toHaveLength(1);
 			expect(results[0]).toEqual({
 				fieldId: "f3",
@@ -71,7 +71,7 @@ describe("text-extractor engine", () => {
 			});
 		});
 
-		it("should handle invalid/malformed selectors gracefully without crashing", () => {
+		it("should handle invalid/malformed selectors gracefully without crashing", async () => {
 			document.body.innerHTML = `<div>content</div>`;
 			const fields = [
 				{
@@ -82,7 +82,7 @@ describe("text-extractor engine", () => {
 				},
 			];
 
-			const results = extractFields(fields);
+			const results = await extractFields(fields);
 			expect(results).toHaveLength(1);
 			expect(results[0].status).toBe("SELECTOR_BROKEN");
 		});

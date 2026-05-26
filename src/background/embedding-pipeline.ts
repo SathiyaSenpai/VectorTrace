@@ -43,9 +43,10 @@ async function setupOffscreenDocument(): Promise<void> {
  * This completely keeps the heavy WASM module execution and window dependencies out of the service worker.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
+	const truncated = text.slice(0, 200);
 	const startTime = Date.now();
 	console.log(
-		`[embedding-pipeline] Requesting embedding from offscreen for: "${text.substring(0, 30)}..."`,
+		`[embedding-pipeline] Requesting embedding from offscreen for: "${truncated.substring(0, 30)}..."`,
 	);
 
 	await setupOffscreenDocument();
@@ -54,7 +55,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 		chrome.runtime.sendMessage(
 			{
 				type: "OFFSCREEN_GENERATE_EMBEDDING",
-				text,
+				text: truncated,
 			},
 			(response) => {
 				const duration = Date.now() - startTime;

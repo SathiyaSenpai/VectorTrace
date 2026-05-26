@@ -136,10 +136,19 @@ export function useSchema() {
 		setSchema(updatedSchema);
 	};
 
+	const isRestricted =
+		url.startsWith("chrome://") ||
+		url.startsWith("chrome-extension://") ||
+		url.startsWith("about:") ||
+		url.startsWith("devtools://") ||
+		url.startsWith("edge://") ||
+		url.startsWith("view-source:");
+
 	return {
 		schema,
 		url,
 		loading,
+		isRestricted,
 		createSchema,
 		deleteSchema,
 		updateSchemaName,
