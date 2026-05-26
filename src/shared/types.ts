@@ -65,6 +65,8 @@ export type MessageType =
 			total: number;
 	  }
 	| { type: "ENUMERATE_PAGE" }
+	| { type: "HIGHLIGHT_ELEMENT"; cssSelector: string }
+	| { type: "REMOVE_HIGHLIGHT" }
 	| {
 			type: "CANDIDATES_FOUND";
 			candidates: { text: string; cssSelector: string; xpathSelector: string }[];

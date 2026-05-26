@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { ChangeDetection } from "../../popup/components/ChangeDetection";
 import { ExtractionResults } from "../../popup/components/ExtractionResults";
 import { SchemaEditor } from "../../popup/components/SchemaEditor";
 import { useExtraction } from "../../popup/hooks/useExtraction";
 import { useSchema } from "../../popup/hooks/useSchema";
+import type { FieldDefinition } from "../../shared/types";
 
 export default function App() {
 	const {
@@ -14,11 +16,15 @@ export default function App() {
 		updateSchemaName,
 		updateFieldLabel,
 		removeField,
+		reloadSchema,
 	} = useSchema();
 
 	const { extractionResult, setExtractionResult, runExtraction } = useExtraction();
 
-	const [activeTab, setActiveTab] = useState<"SCHEMA" | "RESULTS" | "SETTINGS">("SCHEMA");
+	const [activeTab, setActiveTab] = useState<"SCHEMA" | "RESULTS" | "SETTINGS" | "HEALING">(
+		"SCHEMA",
+	);
+	const [healingField, setHealingField] = useState<FieldDefinition | null>(null);
 	const [theme, setTheme] = useState<"dark" | "sakura">("dark");
 
 	// Load stored theme on mount
@@ -58,14 +64,26 @@ export default function App() {
 
 	const handleFindReplacement = async (fieldId: string) => {
 		if (!schema) return;
-		try {
-			await chrome.runtime.sendMessage({
-				type: "FIND_CANDIDATES",
-				fieldId,
-				schemaId: schema.schemaId,
-			});
-		} catch (err) {
-			console.error("[VectorTrace] Failed to trigger replacement finder:", err);
+		const targetField = schema.fields.find((f) => f.fieldId === fieldId);
+		if (targetField) {
+			setHealingField(targetField);
+			setActiveTab("HEALING");
+		}
+	};
+
+	const handleAcceptCandidate = async () => {
+		await reloadSchema();
+		setHealingField(null);
+		setActiveTab("RESULTS");
+
+		if (schema) {
+			setTimeout(async () => {
+				try {
+					await runExtraction(schema.schemaId);
+				} catch (err) {
+					console.error("Re-extraction failed after healing:", err);
+				}
+			}, 400);
 		}
 	};
 
@@ -219,6 +237,17 @@ export default function App() {
 							</div>
 						</div>
 					)
+				) : activeTab === "HEALING" && schema && healingField ? (
+					<ChangeDetection
+						schemaId={schema.schemaId}
+						field={healingField}
+						onAccept={handleAcceptCandidate}
+						onCancel={() => {
+							setHealingField(null);
+							setActiveTab("RESULTS");
+						}}
+						theme={theme}
+					/>
 				) : (
 					/* Settings Tab */
 					<div
