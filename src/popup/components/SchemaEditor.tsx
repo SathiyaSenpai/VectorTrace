@@ -12,6 +12,7 @@ interface SchemaEditorProps {
 	removeField: (fieldId: string) => Promise<void>;
 	extractionResult: ExtractionResult | null;
 	setExtractionResult: (res: ExtractionResult | null) => void;
+	onShowResults: () => void;
 }
 
 export function SchemaEditor({
@@ -24,6 +25,7 @@ export function SchemaEditor({
 	removeField,
 	extractionResult,
 	setExtractionResult,
+	onShowResults,
 }: SchemaEditorProps) {
 	const [schemaNameText, setSchemaNameText] = useState(schema?.name || "");
 	const [isEditingName, setIsEditingName] = useState(false);
@@ -78,7 +80,10 @@ export function SchemaEditor({
 				if (response?.result) {
 					setExtractionResult(response.result);
 					setStatusMessage("Extraction complete");
-					setTimeout(() => setStatusMessage(""), 2000);
+					setTimeout(() => {
+						setStatusMessage("");
+						onShowResults();
+					}, 600);
 				} else if (response?.error) {
 					setStatusMessage(`Error: ${response.error}`);
 				}
