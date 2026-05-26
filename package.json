@@ -1,0 +1,33 @@
+{
+  "name": "vectortrace",
+  "description": "Point-and-click web scraper with semantic change detection",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "lint": "biome check ./src",
+    "lint:fix": "biome check --fix ./src",
+    "test": "vitest run",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "idb": "^8.0.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.2.2",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.7",
+    "wxt": "^0.20.26"
+  }
+}
