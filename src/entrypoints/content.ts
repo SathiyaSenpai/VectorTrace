@@ -17,18 +17,27 @@ export default defineContentScript({
 				console.log("Generated CSS selector:", cssSelector);
 				console.log("Generated XPath:", xpathSelector);
 
-				chrome.runtime.sendMessage({
-					type: "FIELD_SELECTED",
-					field: {
-						fieldId: crypto.randomUUID(),
-						schemaId: activeSchemaId,
-						label: "",
-						cssSelector,
-						xpathSelector,
-						textContent: text,
-						timestamp: Date.now(),
+				chrome.runtime.sendMessage(
+					{
+						type: "FIELD_SELECTED",
+						field: {
+							fieldId: crypto.randomUUID(),
+							schemaId: activeSchemaId,
+							label: "",
+							url: window.location.href,
+							cssSelector,
+							xpathSelector,
+							textContent: text,
+							timestamp: Date.now(),
+						},
+					} as MessageType,
+					(response) => {
+						console.log("FIELD_SELECTED response received:", response);
+						if (chrome.runtime.lastError) {
+							console.error("FIELD_SELECTED runtime error:", chrome.runtime.lastError);
+						}
 					},
-				} as MessageType);
+				);
 			},
 		});
 

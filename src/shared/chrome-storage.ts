@@ -8,9 +8,18 @@ import type { FieldDefinition, Schema } from "./types";
  * @throws Will log and re-throw any errors encountered during the operation.
  */
 export async function saveSchema(schema: Schema): Promise<void> {
+	// Store field metadata only (no full embedding data) in chrome.storage.local
+	const strippedFields = schema.fields.map((field) => ({
+		...field,
+		embedding: [],
+	}));
+	const strippedSchema = {
+		...schema,
+		fields: strippedFields,
+	};
 	const key = `schema_${schema.schemaId}`;
 	try {
-		await chrome.storage.local.set({ [key]: schema });
+		await chrome.storage.local.set({ [key]: strippedSchema });
 	} catch (error) {
 		console.error(`Error saving schema with ID ${schema.schemaId}:`, error);
 		throw error;
