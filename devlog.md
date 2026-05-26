@@ -26,6 +26,8 @@
 - **WXT Dev HMR Support**: Whitelisted local loopbacks and WebSockets in CSP to support hot-reloads during `pnpm dev`.
 - **ONNX Bundle Expansion**: Updated `vite-plugin-onnx-bundle` to copy ES module workers (`.mjs`) alongside WASM binaries to prevent missing worker fetch errors.
 
+Building in Public Twitter/X Thread: https://x.com/VVNG0cWBPP4oLu3
+
 ## Week 2 Accomplishments (27-May-2026)
 
 - **Calm Japanese Sakura Theme**: Implemented a smooth CSS-based theme switcher supporting Dark and Sakura Light modes.
@@ -35,4 +37,3 @@
 - **Change Detection UI Component**: Implemented popup candidate selector with confidence badges, percentage similarity scores, content text previews, and green pulsing target highlights on the page.
 - **Manual Test Plan**: Outlined Hacker News, Amazon, and Wikipedia manual validation steps and edge-cases.
 
-Building in Public Twitter/X Thread: [https://x.com/sathiyasenpai/status/1794711823901923481](https://x.com/sathiyasenpai/status/1794711823901923481)
