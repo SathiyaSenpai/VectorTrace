@@ -12,4 +12,6 @@
 - Updated extension manifest with the missing `tabs` permission required for active URL query logic.
 - Revised roadmap docs to adopt a free Firefox-first deployment model (mitigating the $5 developer fee blocker), clarified E2E environment constraints, added GitHub Sponsors/Namecheap Student Pack alignment, and standardized references to the Antigravity developer environment.
 - Installed `@types/chrome` to resolve TypeScript compilation errors for the global `chrome` namespace.
-
+- Implemented `ElementPicker` class in `src/content/element-picker.ts` supporting visual hover highlight overlay, cursor crosshairs, dynamic tooltip element detailing, click-event capturing with event propagation prevention, and ESC key cancellation.
+- Updated the content script entry point `src/entrypoints/content.ts` to initialize `ElementPicker` and listen for the `START_SELECTION` message.
+- Wired the selection callback to emit the `FIELD_SELECTED` IPC message with the selected element's trimmed `textContent` and placeholders.

@@ -10,7 +10,6 @@ import type { Schema } from "./types";
 
 const mockStorage: Record<string, unknown> = {};
 
-// biome-ignore lint/suspicious/noExplicitAny: Mocking chrome global in NodeJS environment
 (globalThis as any).chrome = {
 	storage: {
 		local: {
