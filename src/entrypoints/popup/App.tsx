@@ -117,26 +117,6 @@ export default function App() {
 				</div>
 
 				<div className="flex items-center gap-3">
-					{/* Custom Sliding Toggle Switch */}
-					<button
-						type="button"
-						role="switch"
-						aria-checked={isSakura}
-						onClick={toggleTheme}
-						className={`w-9 h-5 rounded-full relative transition-colors duration-300 ease-in-out focus:outline-none flex items-center px-0.5 border ${
-							isSakura ? "bg-[#fae6e8] border-[#fbc5c5]" : "bg-gray-800 border-gray-700"
-						}`}
-						title={isSakura ? "Switch to Dark Theme" : "Switch to Sakura (Calm Light Theme)"}
-					>
-						<span
-							className={`w-3.5 h-3.5 rounded-full transition-transform duration-300 ease-in-out shadow flex items-center justify-center text-[9px] leading-none ${
-								isSakura ? "translate-x-4 bg-[#f68799]" : "translate-x-0 bg-yellow-400"
-							}`}
-						>
-							{isSakura ? "🌸" : "🌙"}
-						</span>
-					</button>
-
 					<span className={`text-[10px] font-mono tracking-widest uppercase ${versionClass}`}>
 						v0.1.0
 					</span>
