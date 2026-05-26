@@ -1,4 +1,5 @@
 import { ElementPicker } from "../content/element-picker";
+import { generateCSSSelector, generateXPath } from "../content/selector-generator";
 import type { MessageType } from "../shared/types";
 
 export default defineContentScript({
@@ -9,7 +10,12 @@ export default defineContentScript({
 		const picker = new ElementPicker({
 			onSelect: (element) => {
 				const text = element.textContent?.trim() || "";
+				const cssSelector = generateCSSSelector(element) || "";
+				const xpathSelector = generateXPath(element) || "";
+
 				console.log("Selected element textContent:", text);
+				console.log("Generated CSS selector:", cssSelector);
+				console.log("Generated XPath:", xpathSelector);
 
 				chrome.runtime.sendMessage({
 					type: "FIELD_SELECTED",
@@ -17,8 +23,8 @@ export default defineContentScript({
 						fieldId: crypto.randomUUID(),
 						schemaId: activeSchemaId,
 						label: "",
-						cssSelector: "",
-						xpathSelector: "",
+						cssSelector,
+						xpathSelector,
 						textContent: text,
 						timestamp: Date.now(),
 					},
