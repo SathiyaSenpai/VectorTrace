@@ -91,7 +91,7 @@ export function ExtractionResults({ result, onBack, theme = "dark" }: Extraction
 
 	return (
 		<div
-			className={`w-[380px] min-h-[400px] flex flex-col font-sans p-4 gap-4 select-none ${mainBgClass}`}
+			className={`w-[380px] min-h-[400px] flex flex-col font-sans p-4 gap-4 select-none transition-colors duration-300 ease-in-out ${mainBgClass}`}
 		>
 			{/* Top Header */}
 			<div className={`flex items-center justify-between border-b pb-3 ${borderClass}`}>
