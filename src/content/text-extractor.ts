@@ -7,9 +7,84 @@ import { generateCSSSelector, generateXPath } from "./selector-generator";
  * @param fields - Array of fields to extract, each containing CSS and XPath selectors.
  * @returns Array of extracted field values with their status.
  */
-export function extractFields(
+/**
+ * Utility function to wait for a CSS selector to appear in the DOM.
+ */
+function waitForElement(selector: string, timeout = 1000): Promise<Element | null> {
+	return new Promise((resolve) => {
+		const el = document.querySelector(selector);
+		if (el) return resolve(el);
+
+		const observer = new MutationObserver(() => {
+			const elMutated = document.querySelector(selector);
+			if (elMutated) {
+				observer.disconnect();
+				clearTimeout(timer);
+				resolve(elMutated);
+			}
+		});
+
+		observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+		const timer = setTimeout(() => {
+			observer.disconnect();
+			resolve(null);
+		}, timeout);
+	});
+}
+
+/**
+ * Utility function to wait for an XPath selector to appear in the DOM.
+ */
+function waitForXpath(xpath: string, timeout = 1000): Promise<Element | null> {
+	return new Promise((resolve) => {
+		const evaluate = () => {
+			try {
+				const xPathResult = document.evaluate(
+					xpath,
+					document,
+					null,
+					XPathResult.FIRST_ORDERED_NODE_TYPE,
+					null,
+				);
+				return xPathResult.singleNodeValue as Element | null;
+			} catch {
+				return null;
+			}
+		};
+
+		const el = evaluate();
+		if (el) return resolve(el);
+
+		const observer = new MutationObserver(() => {
+			const elMutated = evaluate();
+			if (elMutated) {
+				observer.disconnect();
+				clearTimeout(timer);
+				resolve(elMutated);
+			}
+		});
+
+		observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+		const timer = setTimeout(() => {
+			observer.disconnect();
+			resolve(null);
+		}, timeout);
+	});
+}
+
+/**
+ * Extracts the values of the defined fields from the current page.
+ * Evaluates CSS selectors first, falling back to XPath selectors if not found.
+ * Supports asynchronous wait for selectors using MutationObservers.
+ *
+ * @param fields - Array of fields to extract, each containing CSS and XPath selectors.
+ * @returns Array of extracted field values with their status.
+ */
+export async function extractFields(
 	fields: { fieldId: string; label: string; cssSelector: string; xpathSelector: string }[],
-): { fieldId: string; label: string; value: string; status: "OK" | "SELECTOR_BROKEN" }[] {
+): Promise<{ fieldId: string; label: string; value: string; status: "OK" | "SELECTOR_BROKEN" }[]> {
 	const results: {
 		fieldId: string;
 		label: string;
@@ -23,7 +98,7 @@ export function extractFields(
 		// 1. Try CSS Selector first
 		if (field.cssSelector) {
 			try {
-				element = document.querySelector(field.cssSelector);
+				element = await waitForElement(field.cssSelector, 1000);
 			} catch (err) {
 				console.error(`Invalid CSS selector for field "${field.label || field.fieldId}":`, err);
 			}
@@ -32,14 +107,7 @@ export function extractFields(
 		// 2. Try XPath Fallback
 		if (!element && field.xpathSelector) {
 			try {
-				const xPathResult = document.evaluate(
-					field.xpathSelector,
-					document,
-					null,
-					XPathResult.FIRST_ORDERED_NODE_TYPE,
-					null,
-				);
-				element = xPathResult.singleNodeValue as Element | null;
+				element = await waitForXpath(field.xpathSelector, 1000);
 			} catch (err) {
 				console.error(`Invalid XPath selector for field "${field.label || field.fieldId}":`, err);
 			}

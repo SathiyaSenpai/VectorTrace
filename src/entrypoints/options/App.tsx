@@ -14,6 +14,22 @@ export default function App() {
 	const [storageBytes, setStorageBytes] = useState(0);
 	const [embeddingCount, setEmbeddingCount] = useState(0);
 
+	// Custom Toast Alert State
+	const [toast, setToast] = useState<{
+		message: string;
+		type: "success" | "error" | "info";
+	} | null>(null);
+
+	const showToast = useCallback(
+		(message: string, type: "success" | "error" | "info" = "success") => {
+			setToast({ message, type });
+			setTimeout(() => {
+				setToast(null);
+			}, 3000);
+		},
+		[],
+	);
+
 	// Gemini Settings Mock Shell State
 	const [geminiKey, setGeminiKey] = useState("");
 	const [showGeminiKey, setShowGeminiKey] = useState(false);
@@ -71,8 +87,9 @@ export default function App() {
 			await deleteSchema(deleteSchemaId);
 			await deleteFieldsBySchema(deleteSchemaId);
 			await loadData();
+			showToast("Schema deleted successfully", "success");
 		} catch {
-			alert("Failed to delete schema");
+			showToast("Failed to delete schema", "error");
 		} finally {
 			setDeleteSchemaId(null);
 		}
@@ -87,7 +104,7 @@ export default function App() {
 	// Reset All Data Action
 	const handleClearAllData = async () => {
 		if (clearConfirmText !== "DELETE") {
-			alert("Confirmation text must match 'DELETE'");
+			showToast("Confirmation text must match 'DELETE'", "error");
 			return;
 		}
 		try {
@@ -97,8 +114,9 @@ export default function App() {
 			setClearConfirmText("");
 			setShowClearConfirm(false);
 			await loadData();
+			showToast("Database reset successfully", "success");
 		} catch {
-			alert("Failed to clear database");
+			showToast("Failed to clear database", "error");
 		}
 	};
 
@@ -134,8 +152,9 @@ export default function App() {
 			a.click();
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
+			showToast("Schema exported successfully", "success");
 		} catch {
-			alert("Failed to export schema");
+			showToast("Failed to export schema", "error");
 		}
 	};
 
@@ -169,10 +188,13 @@ export default function App() {
 					await saveFieldEmbedding(embeddingField);
 				}
 
-				alert("Schema imported successfully!");
+				showToast("Schema imported successfully!", "success");
 				await loadData();
 			} catch (err) {
-				alert(`Failed to import schema: ${err instanceof Error ? err.message : "Invalid JSON"}`);
+				showToast(
+					`Failed to import schema: ${err instanceof Error ? err.message : "Invalid JSON"}`,
+					"error",
+				);
 			} finally {
 				if (importSingleRef.current) importSingleRef.current.value = "";
 			}
@@ -202,8 +224,9 @@ export default function App() {
 			a.click();
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
+			showToast("All data exported successfully", "success");
 		} catch {
-			alert("Failed to export all data");
+			showToast("Failed to export all data", "error");
 		}
 	};
 
@@ -230,10 +253,13 @@ export default function App() {
 					await saveFieldEmbedding(emb);
 				}
 
-				alert("All data and schemas restored successfully!");
+				showToast("All data and schemas restored successfully!", "success");
 				await loadData();
 			} catch (err) {
-				alert(`Failed to import backup: ${err instanceof Error ? err.message : "Invalid JSON"}`);
+				showToast(
+					`Failed to import backup: ${err instanceof Error ? err.message : "Invalid JSON"}`,
+					"error",
+				);
 			} finally {
 				if (importAllRef.current) importAllRef.current.value = "";
 			}
@@ -396,7 +422,7 @@ export default function App() {
 					<div className="flex items-center justify-between p-3.5 rounded-lg border border-gray-750 bg-gray-900/40 mt-2 text-xs">
 						<div className="flex flex-col gap-0.5">
 							<span className="font-semibold text-white">Storage Utilization</span>
-							<span className="text-[10px] text-gray-500">
+							<span className="text-[10px] text-gray-550">
 								IndexedDB handles semantic vectors; local storage handles metadata configurations.
 							</span>
 						</div>
@@ -630,6 +656,22 @@ export default function App() {
 							</button>
 						</div>
 					</div>
+				</div>
+			)}
+
+			{/* Toast Notifications */}
+			{toast && (
+				<div
+					className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-lg text-xs font-bold shadow-2xl transition-all duration-300 z-50 flex items-center gap-2 border animate-bounce ${
+						toast.type === "success"
+							? "bg-green-950/90 border-green-800/40 text-green-300"
+							: toast.type === "error"
+								? "bg-red-950/90 border-red-800/40 text-red-300"
+								: "bg-blue-950/90 border-blue-800/40 text-blue-300"
+					}`}
+				>
+					<span>{toast.type === "success" ? "✅" : toast.type === "error" ? "❌" : "ℹ️"}</span>
+					<span>{toast.message}</span>
 				</div>
 			)}
 		</div>

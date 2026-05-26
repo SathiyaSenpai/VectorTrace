@@ -92,7 +92,7 @@ export default defineContentScript({
 				console.log(
 					`[VectorTrace] Found schema: "${schema.name}" with ${schema.fields.length} fields. Running extraction...`,
 				);
-				const results = extractFields(schema.fields);
+				const results = await extractFields(schema.fields);
 				const extractionResult = {
 					schemaId,
 					url: window.location.href,

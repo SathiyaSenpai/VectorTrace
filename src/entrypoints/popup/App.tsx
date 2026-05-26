@@ -11,6 +11,7 @@ export default function App() {
 		schema,
 		url,
 		loading,
+		isRestricted,
 		createSchema,
 		deleteSchema,
 		updateSchemaName,
@@ -26,6 +27,36 @@ export default function App() {
 	);
 	const [healingField, setHealingField] = useState<FieldDefinition | null>(null);
 	const [theme, setTheme] = useState<"dark" | "sakura">("dark");
+	const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+	const [toast, setToast] = useState<{
+		message: string;
+		type: "success" | "error" | "info";
+	} | null>(null);
+
+	const showToast = useCallback(
+		(message: string, type: "success" | "error" | "info" = "success") => {
+			setToast({ message, type });
+			setTimeout(() => {
+				setToast(null);
+			}, 3000);
+		},
+		[],
+	);
+
+	// Listen for model download progress
+	useEffect(() => {
+		const listener = (message: { type: string; progress?: number }) => {
+			if (message.type === "MODEL_DOWNLOAD_PROGRESS" && message.progress !== undefined) {
+				setDownloadProgress(message.progress);
+			} else if (message.type === "MODEL_DOWNLOAD_COMPLETE") {
+				setDownloadProgress(null);
+			}
+		};
+		chrome.runtime.onMessage.addListener(listener);
+		return () => {
+			chrome.runtime.onMessage.removeListener(listener);
+		};
+	}, []);
 
 	// Load stored theme on mount
 	useEffect(() => {
@@ -41,17 +72,21 @@ export default function App() {
 		const newTheme = theme === "dark" ? "sakura" : "dark";
 		setTheme(newTheme);
 		chrome.storage.local.set({ theme: newTheme });
+		showToast(`Switched to ${newTheme} theme`, "info");
 	};
 
 	// Reset storage handler
 	const handleResetDatabase = async () => {
 		if (
 			window.confirm(
-				"Are you sure you want to delete all VectorTrace schemas? This cannot be undone.",
+				"Are you sure you want to delete all VectorTrace scrapers? This cannot be undone.",
 			)
 		) {
 			await chrome.storage.local.clear();
-			window.location.reload();
+			showToast("Database reset successfully", "success");
+			setTimeout(() => {
+				window.location.reload();
+			}, 1000);
 		}
 	};
 
@@ -60,6 +95,7 @@ export default function App() {
 		await runExtraction(schema.schemaId);
 		// Auto-switch to Results tab when extraction completes
 		setActiveTab("RESULTS");
+		showToast("Extraction complete", "success");
 	};
 
 	const handleFindReplacement = async (fieldId: string) => {
@@ -75,6 +111,7 @@ export default function App() {
 		await reloadSchema();
 		setHealingField(null);
 		setActiveTab("RESULTS");
+		showToast("Selector healed successfully!", "success");
 
 		if (schema) {
 			setTimeout(async () => {
@@ -202,7 +239,17 @@ export default function App() {
 
 			{/* Main Content Area */}
 			<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-				{loading ? (
+				{isRestricted ? (
+					/* Restricted URL Warning */
+					<div className="flex-1 flex flex-col justify-center items-center text-center p-6 gap-3">
+						<span className="text-3xl">⚠️</span>
+						<h3 className="text-sm font-bold">System Page Detected</h3>
+						<p className={`text-xs px-4 leading-normal ${loadingTextClass}`}>
+							VectorTrace cannot scrape system pages or extensions. Please open a regular website to
+							get started.
+						</p>
+					</div>
+				) : loading ? (
 					/* Schema loading: skeleton shimmer animation (3 gray bars pulsing) */
 					<div className="flex-1 flex flex-col p-4 gap-4 animate-pulse">
 						<div className={`h-6 w-2/3 rounded ${isSakura ? "bg-[#fae6e8]" : "bg-gray-800"}`} />
@@ -421,6 +468,38 @@ export default function App() {
 					</div>
 				)}
 			</div>
+			{downloadProgress !== null && (
+				<div
+					className={`p-2 border-t text-[10px] font-bold flex items-center justify-between transition-all duration-300 animate-pulse ${
+						isSakura
+							? "bg-[#fae6e8] border-[#fbc5c5] text-[#d65b70]"
+							: "bg-blue-950/80 border-blue-900/40 text-blue-300"
+					}`}
+				>
+					<span>🤖 Loading AI Model...</span>
+					<span>{Math.round(downloadProgress)}%</span>
+				</div>
+			)}
+			{toast && (
+				<div
+					className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-[10px] font-bold shadow-lg transition-all duration-300 z-50 flex items-center gap-2 border animate-bounce ${
+						toast.type === "success"
+							? isSakura
+								? "bg-[#ffdce3] border-[#fbc5c5] text-[#d65b70]"
+								: "bg-green-950/90 border-green-800/40 text-green-300"
+							: toast.type === "error"
+								? isSakura
+									? "bg-[#fff2f2] border-[#f8d7da] text-[#c92437]"
+									: "bg-red-950/90 border-red-800/40 text-red-300"
+								: isSakura
+									? "bg-[#e8f4fd] border-[#bee5eb] text-[#17a2b8]"
+									: "bg-blue-950/90 border-blue-800/40 text-blue-300"
+					}`}
+				>
+					<span>{toast.type === "success" ? "✅" : toast.type === "error" ? "❌" : "ℹ️"}</span>
+					<span>{toast.message}</span>
+				</div>
+			)}
 		</div>
 	);
 }

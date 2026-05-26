@@ -28,9 +28,24 @@ async function getPipeline(task: string, modelId: string): Promise<any> {
 	initPromises[cacheKey] = pipeline(task, modelId, {
 		dtype: "q8",
 		device: "wasm",
+		progress_callback: (data: { status: string; progress: number }) => {
+			if (data.status === "progress") {
+				chrome.runtime
+					.sendMessage({
+						type: "MODEL_DOWNLOAD_PROGRESS",
+						progress: data.progress,
+					})
+					.catch(() => {});
+			}
+		},
 	});
 
 	pipelines[cacheKey] = await initPromises[cacheKey];
+	chrome.runtime
+		.sendMessage({
+			type: "MODEL_DOWNLOAD_COMPLETE",
+		})
+		.catch(() => {});
 	delete initPromises[cacheKey];
 	return pipelines[cacheKey];
 }
