@@ -210,8 +210,8 @@ export function SchemaEditor({
 					</div>
 					<div>
 						<h2 className="text-sm font-semibold">No Schema Configured</h2>
-						<p className={`text-xs mt-1 ${subTextColor}`}>
-							Create a schema to start mapping and tracking point-and-click elements on this page.
+						<p className={`text-xs mt-1 max-w-[220px] leading-normal ${subTextColor}`}>
+							Click 'Create Schema' to get started
 						</p>
 					</div>
 
@@ -316,12 +316,10 @@ export function SchemaEditor({
 					{/* Fields List */}
 					<div className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1">
 						{schema.fields.length === 0 ? (
-							<div
-								className={`flex-1 flex flex-col justify-center items-center text-center py-6 italic text-xs ${subTextColor}`}
-							>
-								No fields selected yet.
-								<span className="block mt-1 text-[11px] opacity-70">
-									Click "Add Field" below to begin point-and-click.
+							<div className="flex-1 flex flex-col justify-center items-center text-center py-8 gap-2">
+								<span className="text-lg">🖱️</span>
+								<span className={`text-[11px] leading-normal max-w-[200px] ${subTextColor}`}>
+									Click 'Add Field' then click any element on the page
 								</span>
 							</div>
 						) : (

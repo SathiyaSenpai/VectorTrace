@@ -64,7 +64,7 @@ export function FieldCard({
 
 	return (
 		<div
-			className={`rounded-lg p-3 border transition duration-150 ease-in-out flex flex-col gap-1.5 w-full ${cardClass}`}
+			className={`rounded-lg p-3 border transition-all duration-150 ease-in-out flex flex-col gap-1.5 w-full hover:scale-[1.01] ${cardClass}`}
 		>
 			<div className="flex items-center justify-between gap-2">
 				{/* Inline Edit Label */}
