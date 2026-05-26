@@ -3,7 +3,11 @@ import { env, type FeatureExtractionPipeline, pipeline } from "@huggingface/tran
 // Configure Transformers.js to load ONNX WASM from local extension files.
 if (env.backends?.onnx) {
 	env.backends.onnx.wasm = env.backends.onnx.wasm || {};
-	env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("transformers/");
+	// Explicitly configure single-threaded SIMD files to prevent Emscripten's threaded files from referencing 'window' or spawning workers.
+	env.backends.onnx.wasm.wasmPaths = {
+		wasm: chrome.runtime.getURL("transformers/ort-wasm-simd.wasm"),
+		mjs: chrome.runtime.getURL("transformers/ort-wasm-simd.mjs"),
+	};
 	// Disable proxying to web workers and force single-threaded execution to prevent ServiceWorkerGlobalScope dynamic import() errors.
 	env.backends.onnx.wasm.proxy = false;
 	env.backends.onnx.wasm.numThreads = 1;
