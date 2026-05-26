@@ -1,3 +1,4 @@
+import { getFieldEmbedding, saveFieldEmbedding } from "./idb-store";
 import type { FieldDefinition, Schema } from "./types";
 
 /**
@@ -118,6 +119,23 @@ export async function updateSchemaField(
 		schema.updatedAt = Date.now();
 
 		await saveSchema(schema);
+
+		// Also update the metadata in IndexedDB if the field exists there
+		try {
+			const idbField = await getFieldEmbedding(fieldId);
+			if (idbField) {
+				const updatedIdbField = {
+					...idbField,
+					...updates,
+				};
+				await saveFieldEmbedding(updatedIdbField);
+			}
+		} catch (idbError) {
+			console.error(
+				`Warning: Failed to update metadata in IndexedDB for field ${fieldId}:`,
+				idbError,
+			);
+		}
 	} catch (error) {
 		console.error(`Error updating field ${fieldId} in schema ${schemaId}:`, error);
 		throw error;

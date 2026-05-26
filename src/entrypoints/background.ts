@@ -59,12 +59,14 @@ async function handleMessage(
 			// Load schema from chrome.storage.local (or initialize if not present)
 			let schema = await getSchema(message.field.schemaId);
 			if (!schema) {
-				let tabUrl = "";
-				try {
-					const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-					tabUrl = tab?.url || "";
-				} catch (_e) {
-					// Fallback if tab queries fail in this context
+				let tabUrl = message.field.url || "";
+				if (!tabUrl) {
+					try {
+						const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+						tabUrl = tab?.url || "";
+					} catch (_e) {
+						// Fallback if tab queries fail in this context
+					}
 				}
 
 				schema = {
