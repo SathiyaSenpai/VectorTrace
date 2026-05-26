@@ -1,7 +1,7 @@
 import { generateEmbedding } from "../background/embedding-pipeline";
 import { rankCandidates } from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
-import { saveFieldEmbedding } from "../shared/idb-store";
+import { getFieldEmbedding, saveFieldEmbedding } from "../shared/idb-store";
 import type { MessageType } from "../shared/types";
 
 export default defineBackground({
@@ -92,6 +92,84 @@ async function handleMessage(
 			await saveSchema(schema);
 			console.log(`[background] FIELD_SELECTED saved in ${Date.now() - start}ms`);
 			sendResponse({ success: true });
+		} else if (message.type === "FIND_CANDIDATES") {
+			const start = Date.now();
+			const { fieldId } = message;
+
+			// 1. Load stored embedding
+			const field = await getFieldEmbedding(fieldId);
+			if (!field?.embedding) {
+				throw new Error(`Embedding not found for fieldId: ${fieldId}`);
+			}
+
+			// 2. Ask content script for page elements
+			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+			if (!tab?.id) {
+				throw new Error("No active tab found");
+			}
+
+			console.log("[background] Requesting ENUMERATE_PAGE from content script...");
+			const response = await chrome.tabs.sendMessage(tab.id, {
+				type: "ENUMERATE_PAGE",
+			});
+
+			const candidates = response?.candidates;
+			if (!candidates || !Array.isArray(candidates)) {
+				throw new Error("No candidates returned from the content script");
+			}
+
+			console.log(
+				`[background] Received ${candidates.length} candidates from content script. Processing embeddings in chunks of 10...`,
+			);
+
+			// 3. Batch generate embeddings (chunks of 10)
+			const chunkSize = 10;
+			const candidatesWithEmbeddings = [];
+			const total = candidates.length;
+
+			for (let i = 0; i < total; i += chunkSize) {
+				const chunk = candidates.slice(i, i + chunkSize);
+				const results = await Promise.all(
+					chunk.map(async (cand) => {
+						try {
+							const embedding = await generateEmbedding(cand.text);
+							return {
+								text: cand.text,
+								cssSelector: cand.cssSelector,
+								xpathSelector: cand.xpathSelector,
+								embedding,
+							};
+						} catch (err) {
+							console.error(`[background] Failed to embed text chunk: "${cand.text}"`, err);
+							return null;
+						}
+					}),
+				);
+
+				for (const res of results) {
+					if (res) {
+						candidatesWithEmbeddings.push(res);
+					}
+				}
+
+				// Send progress back to popup runtime
+				chrome.runtime
+					.sendMessage({
+						type: "SEARCH_PROGRESS",
+						current: Math.min(i + chunkSize, total),
+						total,
+					})
+					.catch(() => {
+						// Ignore errors if popup closed
+					});
+			}
+
+			// 4. Rank candidates by similarity
+			console.log("[background] Ranking candidates...");
+			const ranked = rankCandidates(field.embedding, candidatesWithEmbeddings);
+
+			console.log(`[background] FIND_CANDIDATES finished in ${Date.now() - start}ms`);
+			sendResponse({ candidates: ranked });
 		} else {
 			// Other messages (e.g. START_SELECTION) are routed to content scripts or other targets
 			sendResponse({ error: "Unhandled message type in background script" });

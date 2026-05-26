@@ -57,7 +57,12 @@ export type MessageType =
 	| {
 			type: "FIND_CANDIDATES";
 			fieldId: string;
-			pageTexts: { text: string; cssSelector: string; xpathSelector: string }[];
+			schemaId: string;
+	  }
+	| {
+			type: "SEARCH_PROGRESS";
+			current: number;
+			total: number;
 	  }
 	| { type: "ENUMERATE_PAGE" }
 	| {
