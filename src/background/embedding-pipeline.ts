@@ -1,7 +1,8 @@
 import { env, type FeatureExtractionPipeline, pipeline } from "@huggingface/transformers";
 
 // Configure Transformers.js to load ONNX WASM from local extension files.
-if (env.backends?.onnx?.wasm) {
+if (env.backends?.onnx) {
+	env.backends.onnx.wasm = env.backends.onnx.wasm || {};
 	env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("transformers/");
 	// Disable proxying to web workers and force single-threaded execution to prevent ServiceWorkerGlobalScope dynamic import() errors.
 	env.backends.onnx.wasm.proxy = false;
