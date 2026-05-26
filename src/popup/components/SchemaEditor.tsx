@@ -14,6 +14,7 @@ interface SchemaEditorProps {
 	setExtractionResult: (res: ExtractionResult | null) => void;
 	onShowResults: () => void;
 	theme?: "dark" | "sakura";
+	onExtract?: () => Promise<void>;
 }
 
 export function SchemaEditor({
@@ -28,6 +29,7 @@ export function SchemaEditor({
 	setExtractionResult,
 	onShowResults,
 	theme = "dark",
+	onExtract,
 }: SchemaEditorProps) {
 	const [schemaNameText, setSchemaNameText] = useState(schema?.name || "");
 	const [isEditingName, setIsEditingName] = useState(false);
@@ -71,6 +73,23 @@ export function SchemaEditor({
 
 	const handleRunExtraction = async () => {
 		if (!schema) return;
+		if (onExtract) {
+			setStatusMessage("Running extraction...");
+			try {
+				await onExtract();
+				setStatusMessage("Extraction complete");
+				setTimeout(() => {
+					setStatusMessage("");
+					onShowResults();
+				}, 600);
+			} catch (err) {
+				const errMsg = err instanceof Error ? err.message : "Failed";
+				setStatusMessage(`Error: ${errMsg}`);
+				setTimeout(() => setStatusMessage(""), 3000);
+			}
+			return;
+		}
+
 		try {
 			setStatusMessage("Running extraction...");
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

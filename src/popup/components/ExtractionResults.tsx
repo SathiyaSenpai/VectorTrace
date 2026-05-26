@@ -1,75 +1,73 @@
 import { useState } from "react";
 import type { ExtractionResult } from "../../shared/types";
+import { ExportControls } from "./ExportControls";
 
 interface ExtractionResultsProps {
+	schemaName: string;
 	result: ExtractionResult;
 	onBack: () => void;
+	onFindReplacement?: (fieldId: string) => Promise<void>;
 	theme?: "dark" | "sakura";
 }
 
-export function ExtractionResults({ result, onBack, theme = "dark" }: ExtractionResultsProps) {
-	const [statusMsg, setStatusMsg] = useState("");
+export function ExtractionResults({
+	schemaName,
+	result,
+	onBack,
+	onFindReplacement,
+	theme = "dark",
+}: ExtractionResultsProps) {
+	const [healingStatus, setHealingStatus] = useState<Record<string, string>>({});
 
-	const handleCopyJson = async () => {
+	const handleFind = async (fieldId: string) => {
+		if (!onFindReplacement) return;
+		setHealingStatus((prev) => ({ ...prev, [fieldId]: "Healing..." }));
 		try {
-			await navigator.clipboard.writeText(JSON.stringify(result, null, 2));
-			setStatusMsg("JSON copied!");
-			setTimeout(() => setStatusMsg(""), 2000);
-		} catch (err) {
-			console.error("Failed to copy JSON:", err);
-			setStatusMsg("Failed to copy JSON");
-			setTimeout(() => setStatusMsg(""), 2000);
+			await onFindReplacement(fieldId);
+			setHealingStatus((prev) => ({ ...prev, [fieldId]: "Flow started" }));
+			setTimeout(() => {
+				setHealingStatus((prev) => {
+					const updated = { ...prev };
+					delete updated[fieldId];
+					return updated;
+				});
+			}, 3000);
+		} catch (_err) {
+			setHealingStatus((prev) => ({ ...prev, [fieldId]: "Failed" }));
+			setTimeout(() => {
+				setHealingStatus((prev) => {
+					const updated = { ...prev };
+					delete updated[fieldId];
+					return updated;
+				});
+			}, 3000);
 		}
 	};
 
-	const handleDownloadCsv = () => {
-		try {
-			const headers = "Field,Value,Status\n";
-			const rows = result.fields
-				.map((f) => {
-					const escapedLabel = f.label.replace(/"/g, '""');
-					const escapedValue = f.value.replace(/"/g, '""');
-					return `"${escapedLabel}","${escapedValue}","${f.status}"`;
-				})
-				.join("\n");
-
-			const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
-			const url = URL.createObjectURL(blob);
-			const link = document.createElement("a");
-			link.setAttribute("href", url);
-			link.setAttribute("download", `extraction_results_${result.timestamp}.csv`);
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-			URL.revokeObjectURL(url);
-
-			setStatusMsg("CSV downloaded!");
-			setTimeout(() => setStatusMsg(""), 2000);
-		} catch (err) {
-			console.error("Failed to download CSV:", err);
-			setStatusMsg("Download failed");
-			setTimeout(() => setStatusMsg(""), 2000);
-		}
-	};
+	const isSakura = theme === "sakura";
+	const formattedTime = new Date(result.timestamp).toLocaleTimeString([], {
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	});
 
 	// Theme Styles
-	const isSakura = theme === "sakura";
 	const mainBgClass = isSakura ? "bg-[#fff7f7] text-[#3a2d2d]" : "bg-gray-900 text-gray-100";
 	const titleTextClass = isSakura
 		? "bg-gradient-to-r from-[#f68799] to-[#798c73] bg-clip-text text-transparent"
 		: "bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent";
-	const statusBadgeClass = isSakura
-		? "text-[#798c73] bg-[#798c73]/10"
-		: "text-emerald-400 bg-emerald-500/10";
+	const borderClass = isSakura ? "border-[#fbc5c5]" : "border-gray-700";
+	const trHoverClass = isSakura ? "hover:bg-[#fae6e8]/20" : "hover:bg-gray-800/50";
 	const tableHeaderClass = isSakura
-		? "border-[#fbc5c5] text-[#8a7272] bg-[#fae6e8]/40"
-		: "border-gray-800 text-gray-400 bg-gray-950/40";
-	const borderClass = isSakura ? "border-[#fbc5c5]" : "border-gray-800";
-	const trHoverClass = isSakura ? "hover:bg-[#fae6e8]/20" : "hover:bg-gray-850/40";
-	const fieldTextClass = isSakura ? "text-[#3a2d2d]" : "text-gray-200";
+		? "bg-[#fae6e8] text-[#8a7272] border-[#fbc5c5]"
+		: "bg-gray-800 text-gray-300 border-gray-700";
+	const subTextColor = isSakura ? "text-[#8a7272]" : "text-gray-400";
 	const valueTextClass = isSakura
-		? "text-[#554040] bg-[#fffbfb] border-[#fae6e8]/60"
-		: "text-gray-300 bg-gray-900/60 border-gray-800";
+		? "text-[#554040] bg-[#fffbfb] border-[#fae6e8]"
+		: "text-gray-300 bg-gray-950/60 border-gray-800";
+	const fieldTextClass = isSakura ? "text-[#3a2d2d]" : "text-gray-200";
+
+	// Status badge styles
 	const okBadgeClass = isSakura
 		? "bg-[#798c73]/20 text-[#4c5f47] border-[#798c73]/15"
 		: "bg-green-500/20 text-green-300 border-green-500/10";
@@ -79,15 +77,14 @@ export function ExtractionResults({ result, onBack, theme = "dark" }: Extraction
 	const brokenBadgeClass = isSakura
 		? "bg-red-500/20 text-red-700 border-red-500/10"
 		: "bg-red-500/20 text-red-300 border-red-500/10";
-	const backBtnClass = isSakura
-		? "bg-white border-[#f5c2c8] text-[#7d6767] hover:bg-[#fae6e8]/40"
-		: "bg-gray-800 hover:bg-gray-700 text-gray-300";
-	const copyBtnClass = isSakura
-		? "bg-[#f68799] hover:bg-[#e26275] text-white"
-		: "bg-blue-600 hover:bg-blue-500 text-white";
-	const downloadBtnClass = isSakura
-		? "bg-[#798c73] hover:bg-[#687a63] text-white"
-		: "bg-emerald-600 hover:bg-emerald-500 text-white";
+
+	// Healed tooltip info helper
+	const getHealedTooltip = (f: { status: string; healedFrom?: string; healedTo?: string }) => {
+		if (f.status === "HEALED" && f.healedFrom && f.healedTo) {
+			return `Healed from broken selector!\nOld: ${f.healedFrom}\nNew: ${f.healedTo}`;
+		}
+		return "Selector automatically restored";
+	};
 
 	return (
 		<div
@@ -95,24 +92,46 @@ export function ExtractionResults({ result, onBack, theme = "dark" }: Extraction
 		>
 			{/* Top Header */}
 			<div className={`flex items-center justify-between border-b pb-3 ${borderClass}`}>
-				<h2 className={`text-base font-bold ${titleTextClass}`}>Extraction Results</h2>
-				{statusMsg && (
-					<span
-						className={`text-[10px] px-2 py-0.5 rounded font-medium animate-pulse ${statusBadgeClass}`}
+				<div className="flex flex-col">
+					<h2 className={`text-base font-bold ${titleTextClass}`}>Extraction Results</h2>
+					<span className={`text-[10px] ${subTextColor}`}>Extracted at {formattedTime}</span>
+				</div>
+				<button
+					type="button"
+					onClick={onBack}
+					className={`px-2.5 py-1 text-xs rounded border transition duration-150 flex items-center gap-1 ${
+						isSakura
+							? "bg-white border-[#f5c2c8] text-[#7d6767] hover:bg-[#fae6e8]/40"
+							: "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+					}`}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="10"
+						height="10"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="3"
+						strokeLinecap="round"
+						strokeLinejoin="round"
 					>
-						{statusMsg}
-					</span>
-				)}
+						<title>Back Icon</title>
+						<line x1="19" y1="12" x2="5" y2="12" />
+						<polyline points="12 19 5 12 12 5" />
+					</svg>
+					Back
+				</button>
 			</div>
 
-			{/* Results List / Table */}
-			<div className="flex-1 overflow-y-auto max-h-[260px] pr-1">
-				<table className="w-full text-left border-collapse">
+			{/* Results Table */}
+			<div className="flex-1 overflow-y-auto max-h-[220px] pr-1">
+				<table className="w-full text-sm text-left border-collapse">
 					<thead>
 						<tr
-							className={`border-b text-[10px] uppercase tracking-wider font-semibold ${tableHeaderClass}`}
+							className={`border-b uppercase text-xs tracking-wider font-semibold ${tableHeaderClass}`}
 						>
-							<th className="py-2 px-2.5">Field</th>
+							<th className="py-2 px-2.5">Field Label</th>
 							<th className="py-2 px-2.5">Value</th>
 							<th className="py-2 px-2.5 text-center">Status</th>
 						</tr>
@@ -125,50 +144,65 @@ export function ExtractionResults({ result, onBack, theme = "dark" }: Extraction
 								</td>
 							</tr>
 						) : (
-							result.fields.map((f, idx) => (
+							result.fields.map((f) => (
 								<tr
 									key={f.fieldId}
-									className={`border-b text-xs transition duration-150 ease-in-out ${trHoverClass} ${borderClass} ${
-										idx % 2 === 1 && isSakura ? "bg-[#fffbfb]" : ""
-									}`}
+									className={`border-b transition duration-150 ease-in-out ${trHoverClass} ${borderClass}`}
 								>
 									<td
-										className={`py-2.5 px-2.5 font-medium truncate max-w-[90px] ${fieldTextClass}`}
+										className={`py-2 px-2.5 font-medium truncate max-w-[85px] ${fieldTextClass}`}
 										title={f.label}
 									>
 										{f.label || `Field (${f.fieldId.slice(0, 4)})`}
 									</td>
 									<td
-										className={`py-2.5 px-2.5 font-mono break-all max-w-[140px] border rounded ${valueTextClass}`}
+										className={`py-2 px-2.5 font-mono break-all max-w-[130px] border rounded text-xs ${valueTextClass}`}
 										title={f.value}
 									>
 										{f.value || <span className="text-gray-500 italic">[empty]</span>}
 									</td>
-									<td className="py-2.5 px-2.5 text-center">
-										{f.status === "OK" && (
-											<span
-												className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border cursor-default ${okBadgeClass}`}
-												title="Successfully Extracted"
-											>
-												✅ OK
-											</span>
-										)}
-										{f.status === "HEALED" && (
-											<span
-												className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border cursor-help ${healedBadgeClass}`}
-												title={`Healed from broken selector!\nFrom: ${f.healedFrom}\nTo: ${f.healedTo}`}
-											>
-												⚠️ HEALED
-											</span>
-										)}
-										{f.status === "SELECTOR_BROKEN" && (
-											<span
-												className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border cursor-default animate-pulse ${brokenBadgeClass}`}
-												title="Selector Broken & Healing Failed"
-											>
-												❌ BROKEN
-											</span>
-										)}
+									<td className="py-2 px-2.5 text-center">
+										<div className="flex flex-col items-center justify-center gap-1">
+											{f.status === "OK" && (
+												<span
+													className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border cursor-default ${okBadgeClass}`}
+													title="Successfully Extracted"
+												>
+													<span className="w-1.5 h-1.5 rounded-full bg-green-400" />✅ OK
+												</span>
+											)}
+											{f.status === "HEALED" && (
+												<span
+													className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${healedBadgeClass}`}
+													title={getHealedTooltip(f)}
+												>
+													<span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+													⚠️ HEALED
+												</span>
+											)}
+											{f.status === "SELECTOR_BROKEN" && (
+												<div className="flex flex-col items-center gap-1">
+													<span
+														className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border cursor-default ${brokenBadgeClass}`}
+														title="Selector Broken"
+													>
+														<span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />❌
+														BROKEN
+													</span>
+													<button
+														type="button"
+														onClick={() => handleFind(f.fieldId)}
+														className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition duration-150 text-white ${
+															isSakura
+																? "bg-[#f68799] hover:bg-[#e26275]"
+																: "bg-red-600 hover:bg-red-500"
+														}`}
+													>
+														{healingStatus[f.fieldId] || "Find Replacement"}
+													</button>
+												</div>
+											)}
+										</div>
 									</td>
 								</tr>
 							))
@@ -177,73 +211,9 @@ export function ExtractionResults({ result, onBack, theme = "dark" }: Extraction
 				</table>
 			</div>
 
-			{/* Buttons Bar */}
-			<div className={`flex gap-2 pt-2 border-t mt-auto ${borderClass}`}>
-				<button
-					type="button"
-					onClick={onBack}
-					className={`px-3 py-2 font-semibold text-xs rounded-lg transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5 ${backBtnClass}`}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					>
-						<title>Back Icon</title>
-						<line x1="19" y1="12" x2="5" y2="12" />
-						<polyline points="12 19 5 12 12 5" />
-					</svg>
-					Back
-				</button>
-				<button
-					type="button"
-					onClick={handleCopyJson}
-					className={`flex-1 px-3 py-2 font-semibold text-xs rounded-lg shadow-md transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5 ${copyBtnClass}`}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					>
-						<title>Copy Icon</title>
-						<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-						<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-					</svg>
-					Copy JSON
-				</button>
-				<button
-					type="button"
-					onClick={handleDownloadCsv}
-					className={`flex-1 px-3 py-2 font-semibold text-xs rounded-lg shadow-md transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5 ${downloadBtnClass}`}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					>
-						<title>Download Icon</title>
-						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-					</svg>
-					Download CSV
-				</button>
+			{/* Bottom Export Controls */}
+			<div className={`pt-3 border-t mt-auto ${borderClass}`}>
+				<ExportControls schemaName={schemaName} result={result} theme={theme} />
 			</div>
 		</div>
 	);
