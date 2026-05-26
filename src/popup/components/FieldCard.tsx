@@ -5,6 +5,7 @@ interface FieldCardProps {
 	field: Omit<FieldDefinition, "embedding">;
 	status?: "OK" | "SELECTOR_BROKEN" | "HEALED";
 	value?: string;
+	theme?: "dark" | "sakura";
 	onUpdateLabel: (fieldId: string, label: string) => void;
 	onDelete: (fieldId: string) => void;
 }
@@ -13,6 +14,7 @@ export function FieldCard({
 	field,
 	status = "OK",
 	value,
+	theme = "dark",
 	onUpdateLabel,
 	onDelete,
 }: FieldCardProps) {
@@ -40,8 +42,30 @@ export function FieldCard({
 
 	const previewText = value !== undefined ? value : field.textContent;
 
+	// Theme classes
+	const isSakura = theme === "sakura";
+	const cardClass = isSakura
+		? "bg-white border-[#f5c2c8] hover:border-[#f68799] text-[#3a2d2d]"
+		: "bg-gray-800 border-gray-700 hover:border-gray-650 text-gray-100";
+	const inputClass = isSakura
+		? "bg-white border-[#f68799] text-[#3a2d2d] focus:outline-none"
+		: "bg-gray-900 border-blue-500 text-gray-100 focus:outline-none";
+	const labelHoverClass = isSakura
+		? "text-[#3a2d2d] hover:text-[#f68799]"
+		: "text-gray-100 hover:text-blue-400";
+	const editIconColor = isSakura ? "text-[#8a7272]" : "text-gray-500";
+	const selectorClass = isSakura ? "text-[#8a7272]" : "text-gray-550";
+	const previewClass = isSakura
+		? "bg-[#fff8f8] border-[#fae6e8] text-[#554040]"
+		: "bg-gray-900/40 border-gray-800/60 text-gray-400";
+	const deleteBtnClass = isSakura
+		? "text-[#8a7272] hover:text-red-500 hover:bg-[#fae6e8]/40"
+		: "text-gray-400 hover:text-red-500 hover:bg-gray-750";
+
 	return (
-		<div className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-gray-650 transition duration-150 ease-in-out flex flex-col gap-1.5 w-full">
+		<div
+			className={`rounded-lg p-3 border transition duration-150 ease-in-out flex flex-col gap-1.5 w-full ${cardClass}`}
+		>
 			<div className="flex items-center justify-between gap-2">
 				{/* Inline Edit Label */}
 				<div className="flex-1 min-w-0">
@@ -54,14 +78,14 @@ export function FieldCard({
 							onKeyDown={handleKeyDown}
 							// biome-ignore lint/a11y/noAutofocus: Standard inline text renaming behavior
 							autoFocus
-							className="w-full bg-gray-900 border border-blue-500 rounded px-1.5 py-0.5 text-xs text-gray-100 focus:outline-none"
+							className={`w-full border rounded px-1.5 py-0.5 text-xs ${inputClass}`}
 						/>
 					) : (
 						<div className="flex items-center gap-1.5 w-full">
 							<button
 								type="button"
 								onClick={() => setIsEditing(true)}
-								className="text-sm font-semibold text-gray-100 hover:text-blue-400 cursor-pointer truncate max-w-[200px] text-left block"
+								className={`text-sm font-semibold cursor-pointer truncate max-w-[200px] text-left block ${labelHoverClass}`}
 								title="Click to rename"
 							>
 								{field.label || `Field (${field.fieldId.slice(0, 4)})`}
@@ -69,7 +93,7 @@ export function FieldCard({
 							<button
 								type="button"
 								onClick={() => setIsEditing(true)}
-								className="text-gray-500 hover:text-gray-300 p-0.5 transition-colors flex-shrink-0"
+								className={`${editIconColor} hover:text-gray-300 p-0.5 transition-colors flex-shrink-0`}
 								title="Edit label"
 							>
 								<svg
@@ -104,7 +128,7 @@ export function FieldCard({
 					<button
 						type="button"
 						onClick={() => onDelete(field.fieldId)}
-						className="text-gray-400 hover:text-red-500 p-1 rounded transition duration-150"
+						className={`p-1 rounded transition duration-150 ${deleteBtnClass}`}
 						title="Delete field"
 					>
 						<svg
@@ -127,14 +151,14 @@ export function FieldCard({
 
 			{/* CSS Selector */}
 			<div
-				className="font-mono text-[10.5px] text-gray-500 truncate select-all cursor-help"
+				className={`font-mono text-[10.5px] truncate select-all cursor-help ${selectorClass}`}
 				title={`Selector: ${field.cssSelector}\nXPath: ${field.xpathSelector}`}
 			>
 				{field.cssSelector}
 			</div>
 
 			{/* Text Content Preview */}
-			<div className="text-xs text-gray-400 truncate italic bg-gray-900/40 px-2 py-1 rounded border border-gray-800/60 mt-0.5">
+			<div className={`text-xs truncate italic px-2 py-1 rounded border mt-0.5 ${previewClass}`}>
 				"{previewText.length > 50 ? `${previewText.slice(0, 50)}...` : previewText}"
 			</div>
 		</div>
