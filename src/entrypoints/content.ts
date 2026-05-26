@@ -4,6 +4,12 @@ import { enumeratePageElements, extractFields } from "../content/text-extractor"
 import { getSchema } from "../shared/chrome-storage";
 import type { MessageType } from "../shared/types";
 
+declare global {
+	interface Window {
+		__vtHighlightClear?: (() => void) | null;
+	}
+}
+
 export default defineContentScript({
 	matches: ["<all_urls>"],
 	main() {
@@ -64,6 +70,12 @@ export default defineContentScript({
 					candidates,
 				} as MessageType);
 				sendResponse({ candidates });
+			} else if (message.type === "HIGHLIGHT_ELEMENT") {
+				highlightElement(message.cssSelector);
+				sendResponse({ success: true });
+			} else if (message.type === "REMOVE_HIGHLIGHT") {
+				removeHighlight();
+				sendResponse({ success: true });
 			}
 		});
 
@@ -101,6 +113,72 @@ export default defineContentScript({
 			} catch (err) {
 				console.error("[VectorTrace] Extraction failed:", err);
 				sendResponse({ error: (err as Error).message });
+			}
+		}
+
+		function highlightElement(selector: string) {
+			removeHighlight();
+
+			let el: Element | null = null;
+			try {
+				el = document.querySelector(selector);
+			} catch (err) {
+				console.error("[VectorTrace] Invalid selector for highlighting:", selector, err);
+			}
+			if (!el) return;
+
+			const rect = el.getBoundingClientRect();
+			const scrollY = window.scrollY;
+			const scrollX = window.scrollX;
+
+			const overlay = document.createElement("div");
+			overlay.id = "vectortrace-highlight-overlay";
+			overlay.style.position = "absolute";
+			overlay.style.top = `${rect.top + scrollY}px`;
+			overlay.style.left = `${rect.left + scrollX}px`;
+			overlay.style.width = `${rect.width}px`;
+			overlay.style.height = `${rect.height}px`;
+			overlay.style.border = "3px solid #22c55e";
+			overlay.style.backgroundColor = "rgba(34, 197, 94, 0.25)";
+			overlay.style.borderRadius = "4px";
+			overlay.style.pointerEvents = "none";
+			overlay.style.zIndex = "2147483647";
+			overlay.style.boxShadow = "0 0 15px rgba(34, 197, 94, 0.5)";
+			overlay.style.transition = "all 0.3s ease";
+
+			document.body.appendChild(overlay);
+
+			let pulseState = true;
+			const interval = setInterval(() => {
+				if (!overlay.parentNode) {
+					clearInterval(interval);
+					return;
+				}
+				overlay.style.boxShadow = pulseState
+					? "0 0 25px rgba(34, 197, 94, 0.8)"
+					: "0 0 10px rgba(34, 197, 94, 0.4)";
+				pulseState = !pulseState;
+			}, 750);
+
+			const timeout = setTimeout(() => {
+				removeHighlight();
+			}, 3000);
+
+			window.__vtHighlightClear = () => {
+				clearInterval(interval);
+				clearTimeout(timeout);
+				overlay.remove();
+			};
+		}
+
+		function removeHighlight() {
+			if (window.__vtHighlightClear) {
+				window.__vtHighlightClear();
+				window.__vtHighlightClear = null;
+			}
+			const existing = document.getElementById("vectortrace-highlight-overlay");
+			if (existing) {
+				existing.remove();
 			}
 		}
 	},
