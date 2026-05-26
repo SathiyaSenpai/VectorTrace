@@ -20,7 +20,7 @@ export class ElementPicker {
 		document.body.addEventListener("click", this.handleClick, true);
 		document.addEventListener("keydown", this.handleKeyDown, true);
 	}
-	// deactivate the picker 
+	// deactivate the picker
 	public deactivate(): void {
 		if (!this.active) return;
 		this.active = false;

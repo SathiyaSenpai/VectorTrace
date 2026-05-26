@@ -61,11 +61,12 @@ Make sure you have [Node.js](https://nodejs.org/) (v18+) and [pnpm](https://pnpm
 ├── public/             # Public directory containing icons & static assets
 ├── src/
 │   ├── assets/         # Global styles and Tailwind configurations
+│   ├── content/        # Core content-script logic (e.g. ElementPicker class)
 │   ├── entrypoints/    # Extension entry points resolved by WXT
 │   │   ├── background.ts  # Service worker
 │   │   ├── content.ts     # Content script injected into tabs
 │   │   └── popup/         # Extension Toolbar UI (React mount)
-│   └── shared/         # Common TypeScript types and utilities
+│   └── shared/         # Common TypeScript types, chrome.storage wrapper, and unit tests
 ├── biome.json          # Biome formatting and lint config
 ├── tailwind.config.js  # Tailwind CSS options
 └── wxt.config.ts       # WXT project configuration
