@@ -4,14 +4,17 @@ import { getSchema, saveSchema } from "../shared/chrome-storage";
 import { saveFieldEmbedding } from "../shared/idb-store";
 import type { MessageType } from "../shared/types";
 
-export default defineBackground(() => {
-	console.log("VectorTrace background loaded");
+export default defineBackground({
+	type: "module",
+	main() {
+		console.log("VectorTrace background loaded");
 
-	chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
-		// Keep the message channel open by returning true, delegating task execution to an async function.
-		handleMessage(message, sendResponse);
-		return true;
-	});
+		chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
+			// Keep the message channel open by returning true, delegating task execution to an async function.
+			handleMessage(message, sendResponse);
+			return true;
+		});
+	},
 });
 
 async function handleMessage(
