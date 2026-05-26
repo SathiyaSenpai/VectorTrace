@@ -75,4 +75,4 @@ Make sure you have [Node.js](https://nodejs.org/) (v18+) and [pnpm](https://pnpm
 
 ## License
 
-This project is open-source and licensed under the [MIT License](LICENSE).
+This project is open-source and licensed under the [GNU Affero General Public License v3 (AGPLv3)](LICENSE).
