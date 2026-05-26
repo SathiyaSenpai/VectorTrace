@@ -1,14 +1,14 @@
 import { env, type FeatureExtractionPipeline, pipeline } from "@huggingface/transformers";
 
 // Configure Transformers.js to load ONNX WASM from local extension files.
+// Use a string prefix so onnxruntime-web constructs all filenames itself.
 if (env.backends?.onnx) {
 	env.backends.onnx.wasm = env.backends.onnx.wasm || {};
-	env.backends.onnx.wasm.wasmPaths = {
-		wasm: chrome.runtime.getURL("transformers/ort-wasm-simd-threaded.wasm"),
-		mjs: chrome.runtime.getURL("transformers/ort-wasm-simd-threaded.mjs"),
-	};
-	// We can use proxy and multithreading because we are inside a normal page context!
-	env.backends.onnx.wasm.proxy = true;
+	env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("transformers/");
+	// numThreads=1 prevents ort from spawning a Worker thread (workers cannot resolve extension URLs)
+	env.backends.onnx.wasm.numThreads = 1;
+	// Disable proxying — we are already in a document context, no proxy needed
+	env.backends.onnx.wasm.proxy = false;
 }
 
 // Disable remote model loading — we want it to download once and cache.
