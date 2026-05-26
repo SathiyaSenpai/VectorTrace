@@ -58,4 +58,9 @@ export type MessageType =
 			type: "FIND_CANDIDATES";
 			fieldId: string;
 			pageTexts: { text: string; cssSelector: string; xpathSelector: string }[];
+	  }
+	| { type: "ENUMERATE_PAGE" }
+	| {
+			type: "CANDIDATES_FOUND";
+			candidates: { text: string; cssSelector: string; xpathSelector: string }[];
 	  };
