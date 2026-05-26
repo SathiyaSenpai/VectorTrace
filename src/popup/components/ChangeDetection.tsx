@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { FieldDefinition, SimilarityCandidate } from "../../shared/types";
 import { useChangeDetection } from "../hooks/useChangeDetection";
+import { sendMessageWithRetry } from "../utils/messaging";
 
 interface ChangeDetectionProps {
 	schemaId: string;
@@ -34,7 +35,7 @@ export function ChangeDetection({
 		try {
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 			if (tab?.id) {
-				await chrome.tabs.sendMessage(tab.id, {
+				await sendMessageWithRetry(tab.id, {
 					type: "HIGHLIGHT_ELEMENT",
 					cssSelector: candidate.cssSelector,
 				});
