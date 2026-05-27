@@ -45,11 +45,7 @@ export function ExtractionResults({
 	};
 
 	const isSakura = theme === "sakura";
-	const formattedTime = new Date(result.timestamp).toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-		second: "2-digit",
-	});
+	const formattedTime = new Date(result.timestamp).toLocaleString();
 
 	// Theme Styles
 	const mainBgClass = isSakura ? "bg-[#fff7f7] text-[#3a2d2d]" : "bg-gray-900 text-gray-100";
@@ -81,7 +77,7 @@ export function ExtractionResults({
 	// Healed tooltip info helper
 	const getHealedTooltip = (f: { status: string; healedFrom?: string; healedTo?: string }) => {
 		if (f.status === "HEALED" && f.healedFrom && f.healedTo) {
-			return `Healed from broken selector!\nOld: ${f.healedFrom}\nNew: ${f.healedTo}`;
+			return `${f.healedFrom} → ${f.healedTo}`;
 		}
 		return "Selector automatically restored";
 	};

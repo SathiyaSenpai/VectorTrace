@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { ExtractionResult, MessageType } from "../../shared/types";
-import { sendMessageWithRetry } from "../utils/messaging";
 
 export function useExtraction() {
 	const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
@@ -23,29 +22,43 @@ export function useExtraction() {
 		setIsExtracting(true);
 		setError(null);
 		try {
-			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-			if (!tab?.id) {
-				throw new Error("No active web page tab found");
-			}
+			// Set up listener to wait for EXTRACTION_COMPLETE broadcast
+			const extractionPromise = new Promise<ExtractionResult>((resolve, reject) => {
+				const listener = (message: unknown) => {
+					const msg = message as { type: string; result?: ExtractionResult };
+					if (
+						msg.type === "EXTRACTION_COMPLETE" &&
+						msg.result &&
+						msg.result.schemaId === schemaId
+					) {
+						chrome.runtime.onMessage.removeListener(listener);
+						resolve(msg.result);
+					}
+				};
+				chrome.runtime.onMessage.addListener(listener);
 
-			// Send message to content script of the active tab using retry mechanism
-			const response = (await sendMessageWithRetry(tab.id, {
+				// 15 seconds safety timeout
+				setTimeout(() => {
+					chrome.runtime.onMessage.removeListener(listener);
+					reject(new Error("Extraction timed out waiting for EXTRACTION_COMPLETE"));
+				}, 15000);
+			});
+
+			// Send message to background script
+			const response = (await chrome.runtime.sendMessage({
 				type: "RUN_EXTRACTION",
 				schemaId,
-			})) as { error?: string; result?: ExtractionResult } | undefined;
+			})) as { error?: string; success?: boolean } | undefined;
 
 			if (response?.error) {
 				throw new Error(response.error);
 			}
 
-			if (response?.result) {
-				setExtractionResult(response.result);
-				return response.result as ExtractionResult;
-			}
-
-			throw new Error("Empty response returned from extraction service");
+			const result = await extractionPromise;
+			setExtractionResult(result);
+			return result;
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Failed to trigger extraction script";
+			const msg = err instanceof Error ? err.message : "Failed to run extraction";
 			setError(msg);
 			throw err;
 		} finally {

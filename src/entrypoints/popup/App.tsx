@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChangeDetection } from "../../popup/components/ChangeDetection";
 import { ExtractionResults } from "../../popup/components/ExtractionResults";
 import { SchemaEditor } from "../../popup/components/SchemaEditor";
@@ -92,10 +92,15 @@ export default function App() {
 
 	const handleRunExtraction = async () => {
 		if (!schema) return;
-		await runExtraction(schema.schemaId);
-		// Auto-switch to Results tab when extraction completes
+		// Auto-switch to Results tab when extraction runs
 		setActiveTab("RESULTS");
-		showToast("Extraction complete", "success");
+		try {
+			await runExtraction(schema.schemaId);
+			showToast("Extraction complete", "success");
+		} catch (err) {
+			console.error("Extraction failed:", err);
+			showToast("Extraction failed", "error");
+		}
 	};
 
 	const handleFindReplacement = async (fieldId: string) => {
