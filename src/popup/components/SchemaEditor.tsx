@@ -46,23 +46,18 @@ export function SchemaEditor({
 	const [statusMessage, setStatusMessage] = useState("");
 	const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
 	const fieldsListRef = useRef<HTMLUListElement>(null);
-	const prevFieldsLength = useRef(schema?.fields.length || 0);
-
 	useEffect(() => {
-		const currentLength = schema?.fields.length || 0;
-		if (currentLength > prevFieldsLength.current) {
+		if (draggedFieldId === null) return;
+		const handleGlobalWheel = (e: WheelEvent) => {
 			if (fieldsListRef.current) {
-				fieldsListRef.current.scrollTop = fieldsListRef.current.scrollHeight;
+				fieldsListRef.current.scrollTop += e.deltaY;
 			}
-		}
-		prevFieldsLength.current = currentLength;
-	}, [schema?.fields.length]);
-
-	const handleWheel = (e: React.WheelEvent<HTMLUListElement>) => {
-		if (draggedFieldId !== null) {
-			e.currentTarget.scrollTop += e.deltaY;
-		}
-	};
+		};
+		window.addEventListener("wheel", handleGlobalWheel, { passive: true });
+		return () => {
+			window.removeEventListener("wheel", handleGlobalWheel);
+		};
+	}, [draggedFieldId]);
 
 	const handleDragStart = (e: React.DragEvent, fieldId: string) => {
 		setDraggedFieldId(fieldId);
@@ -374,7 +369,6 @@ export function SchemaEditor({
 					{/* Fields List */}
 					<ul
 						ref={fieldsListRef}
-						onWheel={handleWheel}
 						className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1 list-none p-0 m-0"
 					>
 						{schema.fields.length === 0 ? (

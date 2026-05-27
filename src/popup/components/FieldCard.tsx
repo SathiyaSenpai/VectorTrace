@@ -46,13 +46,12 @@ export function FieldCard({
 
 	// Theme classes
 	const isSakura = theme === "sakura";
-	const cardClass = isJustAdded
-		? isSakura
-			? "bg-rose-100/30 border-rose-400 text-[#3a2d2d] shadow-[0_0_15px_rgba(244,63,94,0.35)] ring-1 ring-rose-400/30 animate-pulse"
-			: "bg-emerald-950/40 border-emerald-500 text-gray-100 shadow-[0_0_15px_rgba(16,185,129,0.35)] ring-1 ring-emerald-500/30 animate-pulse"
-		: isSakura
-			? "bg-white border-[#f5c2c8] hover:border-[#f68799] text-[#3a2d2d]"
-			: "bg-gray-800 border-gray-700 hover:border-gray-650 text-gray-100";
+	const cardClass = isSakura
+		? "bg-white border-[#f5c2c8] hover:border-[#f68799] text-[#3a2d2d]"
+		: "bg-gray-800 border-gray-700 hover:border-gray-650 text-gray-100";
+	const badgeClass = isSakura
+		? "bg-[#798c73]/10 text-[#798c73] border-[#798c73]/20"
+		: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
 	const inputClass = isSakura
 		? "bg-white border-[#f68799] text-[#3a2d2d] focus:outline-none"
 		: "bg-gray-900 border-blue-500 text-gray-100 focus:outline-none";
@@ -96,6 +95,13 @@ export function FieldCard({
 							>
 								{field.label || `Field (${field.fieldId.slice(0, 4)})`}
 							</button>
+							{isJustAdded && (
+								<span
+									className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border select-none ${badgeClass}`}
+								>
+									NEW
+								</span>
+							)}
 							<button
 								type="button"
 								onClick={() => setIsEditing(true)}

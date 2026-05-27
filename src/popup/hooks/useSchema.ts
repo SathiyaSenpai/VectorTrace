@@ -63,7 +63,7 @@ export function useSchema() {
 				setTimeout(async () => {
 					await loadSchema(url);
 					setLastAddedFieldId(message.field.fieldId);
-					setTimeout(() => setLastAddedFieldId(null), 1500);
+					setTimeout(() => setLastAddedFieldId(null), 3000);
 				}, 600);
 			} else if (message.type === "PICKER_CANCELLED") {
 				setIsPickerActive(false);
