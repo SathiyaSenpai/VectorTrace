@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ExtractionResult, FieldDefinition, Schema } from "../../shared/types";
 import { sendMessageWithRetry } from "../utils/messaging";
 import { FieldCard } from "./FieldCard";
@@ -44,31 +44,184 @@ export function SchemaEditor({
 	const [isEditingName, setIsEditingName] = useState(false);
 	const [newSchemaName, setNewSchemaName] = useState("");
 	const [statusMessage, setStatusMessage] = useState("");
+	// ── Pointer-based Drag & Drop ───────────────────────────────────────────────
 	const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
 	const fieldsListRef = useRef<HTMLUListElement>(null);
+	const [localFields, setLocalFields] = useState<FieldDefinition[]>(schema?.fields || []);
+	const localFieldsRef = useRef(localFields);
 
-	const handleDragStart = (e: React.DragEvent, fieldId: string) => {
-		setDraggedFieldId(fieldId);
-		e.dataTransfer.effectAllowed = "move";
-	};
+	useEffect(() => {
+		localFieldsRef.current = localFields;
+	}, [localFields]);
 
-	const handleDragOver = (e: React.DragEvent, index: number) => {
-		e.preventDefault();
-		if (!schema || draggedFieldId === null) return;
+	// Internal refs that don't need to cause re-renders
+	const dragState = useRef<{
+		active: boolean;
+		fieldId: string;
+		fieldIndex: number;
+		currentY: number;
+		rafId: number | null;
+	} | null>(null);
 
-		const dragIndex = schema.fields.findIndex((f) => f.fieldId === draggedFieldId);
-		if (dragIndex === -1 || dragIndex === index) return;
+	useEffect(() => {
+		if (schema?.fields) {
+			setLocalFields(schema.fields);
+		}
+	}, [schema?.fields]);
 
-		const reorderedFields = [...schema.fields];
-		const [draggedField] = reorderedFields.splice(dragIndex, 1);
-		reorderedFields.splice(index, 0, draggedField);
+	const dragScrollLoop = useRef<number | null>(null);
 
-		reorderFields(reorderedFields);
-	};
+	// Recompute target slot based on current pointer Y, accounting for scroll position and scrollDelta
+	const computeTargetIndex = useCallback((clientY: number, scrollDelta: number) => {
+		const list = fieldsListRef.current;
+		if (!list) return -1;
+		if (!dragState.current) return -1;
 
-	const handleDragEnd = () => {
+		const fromId = dragState.current.fieldId;
+		const currentFields = localFieldsRef.current;
+		const fromIndex = currentFields.findIndex((f) => f.fieldId === fromId);
+		if (fromIndex === -1) return -1;
+
+		// We only allow swapping with the immediate neighbor above or below
+		// Check neighbor above:
+		if (fromIndex > 0) {
+			const neighborAboveId = currentFields[fromIndex - 1].fieldId;
+			const neighborAbove = list.querySelector(`li[data-field-id="${neighborAboveId}"]`) as HTMLElement;
+			if (neighborAbove) {
+				const rect = neighborAbove.getBoundingClientRect();
+				// Shift midpoint by -scrollDelta to account for synchronous scrolling
+				const mid = rect.top + rect.height / 2 - scrollDelta;
+				if (clientY < mid) {
+					return fromIndex - 1;
+				}
+			}
+		}
+
+		// Check neighbor below:
+		if (fromIndex < currentFields.length - 1) {
+			const neighborBelowId = currentFields[fromIndex + 1].fieldId;
+			const neighborBelow = list.querySelector(`li[data-field-id="${neighborBelowId}"]`) as HTMLElement;
+			if (neighborBelow) {
+				const rect = neighborBelow.getBoundingClientRect();
+				// Shift midpoint by -scrollDelta to account for synchronous scrolling
+				const mid = rect.top + rect.height / 2 - scrollDelta;
+				if (clientY > mid) {
+					return fromIndex + 1;
+				}
+			}
+		}
+
+		return fromIndex;
+	}, []);
+
+	// A function that is called continuously to handle scrolling and reordering
+	const updateDragPosition = useCallback(() => {
+		if (!dragState.current?.active) return;
+
+		const list = fieldsListRef.current;
+		if (list) {
+			const rect = list.getBoundingClientRect();
+			const y = dragState.current.currentY;
+			const edgeZone = 40; // px zone at top/bottom of list
+			const relY = y - rect.top;
+
+			let scrollDelta = 0;
+			if (relY < edgeZone) {
+				// Scroll up - speed scales with drag distance outside boundary
+				const intensity = Math.max(0, (edgeZone - relY) / edgeZone);
+				scrollDelta = -Math.min(25, Math.round(intensity * 12));
+			} else if (relY > rect.height - edgeZone) {
+				// Scroll down - speed scales with drag distance outside boundary
+				const intensity = Math.max(0, (relY - (rect.height - edgeZone)) / edgeZone);
+				scrollDelta = Math.min(25, Math.round(intensity * 12));
+			}
+
+			if (scrollDelta !== 0) {
+				list.scrollTop += scrollDelta;
+			}
+
+			// Recompute target slot
+			const targetIndex = computeTargetIndex(y, scrollDelta);
+			if (targetIndex >= 0) {
+				setLocalFields((prev) => {
+					const fromIndex = prev.findIndex((f) => f.fieldId === dragState.current?.fieldId);
+					if (fromIndex === -1 || fromIndex === targetIndex) return prev;
+					const next = [...prev];
+					const [moved] = next.splice(fromIndex, 1);
+					next.splice(targetIndex, 0, moved);
+					return next;
+				});
+			}
+		}
+
+		dragScrollLoop.current = requestAnimationFrame(updateDragPosition);
+	}, [computeTargetIndex]);
+
+	// Clean up animation frame loop on unmount
+	useEffect(() => {
+		return () => {
+			if (dragScrollLoop.current !== null) {
+				cancelAnimationFrame(dragScrollLoop.current);
+			}
+		};
+	}, []);
+
+	const handlePointerDown = useCallback(
+		(e: React.PointerEvent, fieldId: string, fieldIndex: number) => {
+			// Only respond to primary button (left click)
+			if (e.button !== 0) return;
+			e.preventDefault();
+			e.currentTarget.setPointerCapture(e.pointerId);
+
+			dragState.current = {
+				active: true,
+				fieldId,
+				fieldIndex,
+				currentY: e.clientY,
+				rafId: null,
+			};
+			setDraggedFieldId(fieldId);
+
+			if (dragScrollLoop.current === null) {
+				dragScrollLoop.current = requestAnimationFrame(updateDragPosition);
+			}
+		},
+		[updateDragPosition],
+	);
+
+	const handlePointerMove = useCallback((e: React.PointerEvent) => {
+		if (dragState.current?.active) {
+			dragState.current.currentY = e.clientY;
+		}
+	}, []);
+
+	const handlePointerUp = useCallback(() => {
+		if (!dragState.current?.active) return;
+		if (dragScrollLoop.current !== null) {
+			cancelAnimationFrame(dragScrollLoop.current);
+			dragScrollLoop.current = null;
+		}
+		dragState.current = null;
 		setDraggedFieldId(null);
-	};
+		// Use functional updater to get latest localFields without adding it as dep
+		setLocalFields((current) => {
+			reorderFields(current);
+			return current;
+		});
+	}, [reorderFields]);
+
+	// Scroll wheel support while dragging
+	useEffect(() => {
+		const list = fieldsListRef.current;
+		if (!list) return;
+		const handleWheel = (e: WheelEvent) => {
+			if (dragState.current?.active) {
+				list.scrollTop += e.deltaY;
+			}
+		};
+		list.addEventListener("wheel", handleWheel, { passive: true });
+		return () => list.removeEventListener("wheel", handleWheel);
+	}, []);
 
 	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -355,12 +508,11 @@ export function SchemaEditor({
 						</button>
 					</div>
 
-					{/* Fields List */}
 					<ul
 						ref={fieldsListRef}
-						className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1 list-none p-0 m-0"
+						className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] px-2.5 py-1 list-none m-0 custom-scrollbar"
 					>
-						{schema.fields.length === 0 ? (
+						{localFields.length === 0 ? (
 							<div className="flex-1 flex flex-col justify-center items-center text-center py-8 gap-2">
 								<span className="text-lg">🖱️</span>
 								<span className={`text-[11px] leading-normal max-w-[200px] ${subTextColor}`}>
@@ -368,7 +520,7 @@ export function SchemaEditor({
 								</span>
 							</div>
 						) : (
-							schema.fields.map((field, index) => {
+							localFields.map((field, index) => {
 								const fieldResult = extractionResult?.fields.find(
 									(rf) => rf.fieldId === field.fieldId,
 								);
@@ -376,12 +528,18 @@ export function SchemaEditor({
 								return (
 									<li
 										key={field.fieldId}
-										draggable
-										onDragStart={(e) => handleDragStart(e, field.fieldId)}
-										onDragOver={(e) => handleDragOver(e, index)}
-										onDragEnd={handleDragEnd}
-										className={`cursor-grab active:cursor-grabbing transition-opacity duration-150 ${
-											draggedFieldId === field.fieldId ? "opacity-40" : "opacity-100"
+										data-field-id={field.fieldId}
+										onPointerDown={(e) => handlePointerDown(e, field.fieldId, index)}
+										onPointerMove={handlePointerMove}
+										onPointerUp={handlePointerUp}
+										onPointerCancel={handlePointerUp}
+										style={{ touchAction: "none", userSelect: "none" }}
+										className={`cursor-grab active:cursor-grabbing transition-all duration-150 relative rounded-lg ${
+											draggedFieldId === field.fieldId
+												? theme === "sakura"
+													? "scale-[1.02] z-50 opacity-95 shadow-[0_0_15px_rgba(246,135,153,0.45)]"
+													: "scale-[1.02] z-50 opacity-95 shadow-[0_0_15px_rgba(59,130,246,0.45)]"
+												: "opacity-100 z-0"
 										}`}
 									>
 										<FieldCard

@@ -163,7 +163,7 @@ export default function App() {
 
 	return (
 		<div
-			className={`w-[380px] min-h-[400px] flex flex-col font-sans select-none transition-colors duration-300 ease-in-out ${containerClass}`}
+			className={`w-[380px] min-h-[400px] flex flex-col font-sans select-none transition-colors duration-300 ease-in-out ${containerClass} theme-${theme}`}
 		>
 			{/* Top App Bar with Gradient */}
 			<div

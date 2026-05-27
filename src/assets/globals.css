@@ -16,3 +16,40 @@
 .animate-slide-up {
 	animation: slide-up 0.2s ease-out forwards;
 }
+
+/* Custom Scrollbar Styles */
+.custom-scrollbar::-webkit-scrollbar {
+	width: 5px;
+	height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+	background: rgba(156, 163, 175, 0.25);
+	border-radius: 9999px;
+	transition: background-color 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: rgba(156, 163, 175, 0.45);
+}
+
+/* Theme overrides for scrollbar thumb */
+.theme-sakura .custom-scrollbar::-webkit-scrollbar-thumb {
+	background: rgba(246, 135, 153, 0.35);
+}
+
+.theme-sakura .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: rgba(246, 135, 153, 0.55);
+}
+
+.theme-dark .custom-scrollbar::-webkit-scrollbar-thumb {
+	background: rgba(156, 163, 175, 0.2);
+}
+
+.theme-dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: rgba(156, 163, 175, 0.4);
+}
