@@ -8,6 +8,7 @@ interface FieldCardProps {
 	theme?: "dark" | "sakura";
 	onUpdateLabel: (fieldId: string, label: string) => void;
 	onDelete: (fieldId: string) => void;
+	isJustAdded?: boolean;
 }
 
 export function FieldCard({
@@ -17,6 +18,7 @@ export function FieldCard({
 	theme = "dark",
 	onUpdateLabel,
 	onDelete,
+	isJustAdded = false,
 }: FieldCardProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [labelText, setLabelText] = useState(field.label || `Field (${field.fieldId.slice(0, 4)})`);
@@ -44,9 +46,13 @@ export function FieldCard({
 
 	// Theme classes
 	const isSakura = theme === "sakura";
-	const cardClass = isSakura
-		? "bg-white border-[#f5c2c8] hover:border-[#f68799] text-[#3a2d2d]"
-		: "bg-gray-800 border-gray-700 hover:border-gray-650 text-gray-100";
+	const cardClass = isJustAdded
+		? isSakura
+			? "bg-[#798c73]/10 border-[#798c73] text-[#3a2d2d] shadow-[0_0_12px_rgba(121,140,115,0.25)] animate-pulse"
+			: "bg-green-950/30 border-green-500 text-gray-100 shadow-[0_0_12px_rgba(34,197,94,0.25)] animate-pulse"
+		: isSakura
+			? "bg-white border-[#f5c2c8] hover:border-[#f68799] text-[#3a2d2d]"
+			: "bg-gray-800 border-gray-700 hover:border-gray-650 text-gray-100";
 	const inputClass = isSakura
 		? "bg-white border-[#f68799] text-[#3a2d2d] focus:outline-none"
 		: "bg-gray-900 border-blue-500 text-gray-100 focus:outline-none";

@@ -18,6 +18,10 @@ export default function App() {
 		updateSchemaName,
 		updateFieldLabel,
 		removeField,
+		reorderFields,
+		lastAddedFieldId,
+		isPickerActive,
+		setIsPickerActive,
 		reloadSchema,
 	} = useSchema();
 
@@ -323,6 +327,10 @@ export default function App() {
 								updateSchemaName={updateSchemaName}
 								updateFieldLabel={updateFieldLabel}
 								removeField={removeField}
+								reorderFields={reorderFields}
+								lastAddedFieldId={lastAddedFieldId}
+								isPickerActive={isPickerActive}
+								setIsPickerActive={setIsPickerActive}
 								extractionResult={extractionResult}
 								setExtractionResult={setExtractionResult}
 								onShowResults={() => setActiveTab("RESULTS")}
@@ -490,7 +498,7 @@ export default function App() {
 			)}
 			{toast && (
 				<div
-					className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-[10px] font-bold shadow-lg transition-all duration-300 z-50 flex items-center gap-2 border animate-bounce ${
+					className={`fixed bottom-4 left-1/2 px-4 py-2 rounded-lg text-[10px] font-bold shadow-lg transition-all duration-300 z-50 flex items-center gap-2 border animate-slide-up ${
 						toast.type === "success"
 							? isSakura
 								? "bg-[#ffdce3] border-[#fbc5c5] text-[#d65b70]"

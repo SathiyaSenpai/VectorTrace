@@ -5,12 +5,14 @@ import {
 	deleteSchema as storageDeleteSchema,
 	updateSchemaField,
 } from "../../shared/chrome-storage";
-import type { MessageType, Schema } from "../../shared/types";
+import type { FieldDefinition, MessageType, Schema } from "../../shared/types";
 
 export function useSchema() {
 	const [schema, setSchema] = useState<Schema | null>(null);
 	const [url, setUrl] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(true);
+	const [lastAddedFieldId, setLastAddedFieldId] = useState<string | null>(null);
+	const [isPickerActive, setIsPickerActive] = useState<boolean>(false);
 
 	const loadSchema = useCallback(async (currentUrl: string) => {
 		if (!currentUrl) return;
@@ -57,10 +59,15 @@ export function useSchema() {
 
 		const messageListener = (message: MessageType) => {
 			if (message.type === "FIELD_SELECTED") {
+				setIsPickerActive(false);
 				// Delay slightly to ensure background database writes complete
 				setTimeout(() => {
 					loadSchema(url);
+					setLastAddedFieldId(message.field.fieldId);
+					setTimeout(() => setLastAddedFieldId(null), 1500);
 				}, 600);
+			} else if (message.type === "PICKER_CANCELLED") {
+				setIsPickerActive(false);
 			}
 		};
 
@@ -136,6 +143,17 @@ export function useSchema() {
 		setSchema(updatedSchema);
 	};
 
+	const reorderFields = async (orderedFields: FieldDefinition[]) => {
+		if (!schema) return;
+		const updatedSchema: Schema = {
+			...schema,
+			fields: orderedFields,
+			updatedAt: Date.now(),
+		};
+		await saveSchema(updatedSchema);
+		setSchema(updatedSchema);
+	};
+
 	const isRestricted =
 		url.startsWith("chrome://") ||
 		url.startsWith("chrome-extension://") ||
@@ -154,6 +172,10 @@ export function useSchema() {
 		updateSchemaName,
 		updateFieldLabel,
 		removeField,
+		reorderFields,
+		lastAddedFieldId,
+		isPickerActive,
+		setIsPickerActive,
 		reloadSchema: () => loadSchema(url),
 	};
 }

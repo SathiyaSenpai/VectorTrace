@@ -73,4 +73,5 @@ export type MessageType =
 	  }
 	| { type: "OFFSCREEN_GENERATE_EMBEDDING"; text: string }
 	| { type: "MODEL_DOWNLOAD_PROGRESS"; progress: number }
-	| { type: "MODEL_DOWNLOAD_COMPLETE" };
+	| { type: "MODEL_DOWNLOAD_COMPLETE" }
+	| { type: "PICKER_CANCELLED" };

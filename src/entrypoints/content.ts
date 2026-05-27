@@ -25,6 +25,8 @@ export default defineContentScript({
 				console.log("Generated CSS selector:", cssSelector);
 				console.log("Generated XPath:", xpathSelector);
 
+				picker.deactivate();
+
 				chrome.runtime.sendMessage(
 					{
 						type: "FIELD_SELECTED",
@@ -46,6 +48,11 @@ export default defineContentScript({
 						}
 					},
 				);
+			},
+			onDeactivate: () => {
+				chrome.runtime.sendMessage({
+					type: "PICKER_CANCELLED",
+				} as MessageType);
 			},
 		});
 

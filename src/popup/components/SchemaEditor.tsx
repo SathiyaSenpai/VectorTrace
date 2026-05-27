@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { ExtractionResult, Schema } from "../../shared/types";
+import { useEffect, useState } from "react";
+import type { ExtractionResult, FieldDefinition, Schema } from "../../shared/types";
 import { sendMessageWithRetry } from "../utils/messaging";
 import { FieldCard } from "./FieldCard";
 
@@ -11,6 +11,10 @@ interface SchemaEditorProps {
 	updateSchemaName: (name: string) => Promise<void>;
 	updateFieldLabel: (fieldId: string, label: string) => Promise<void>;
 	removeField: (fieldId: string) => Promise<void>;
+	reorderFields: (fields: FieldDefinition[]) => Promise<void>;
+	lastAddedFieldId: string | null;
+	isPickerActive: boolean;
+	setIsPickerActive: (active: boolean) => void;
 	extractionResult: ExtractionResult | null;
 	setExtractionResult: (res: ExtractionResult | null) => void;
 	onShowResults: () => void;
@@ -26,6 +30,10 @@ export function SchemaEditor({
 	updateSchemaName,
 	updateFieldLabel,
 	removeField,
+	reorderFields,
+	lastAddedFieldId,
+	isPickerActive,
+	setIsPickerActive,
 	extractionResult,
 	setExtractionResult,
 	onShowResults,
@@ -36,6 +44,29 @@ export function SchemaEditor({
 	const [isEditingName, setIsEditingName] = useState(false);
 	const [newSchemaName, setNewSchemaName] = useState("");
 	const [statusMessage, setStatusMessage] = useState("");
+	const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+
+	const handleDragStart = (e: React.DragEvent, fieldId: string) => {
+		setDraggedFieldId(fieldId);
+		e.dataTransfer.effectAllowed = "move";
+	};
+
+	const handleDragOver = (e: React.DragEvent, index: number) => {
+		e.preventDefault();
+		if (!schema || draggedFieldId === null) return;
+		const dragIndex = schema.fields.findIndex((f) => f.fieldId === draggedFieldId);
+		if (dragIndex === -1 || dragIndex === index) return;
+
+		const reorderedFields = [...schema.fields];
+		const [draggedField] = reorderedFields.splice(dragIndex, 1);
+		reorderedFields.splice(index, 0, draggedField);
+
+		reorderFields(reorderedFields);
+	};
+
+	const handleDragEnd = () => {
+		setDraggedFieldId(null);
+	};
 
 	const handleCreate = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -54,9 +85,16 @@ export function SchemaEditor({
 		}
 	};
 
+	useEffect(() => {
+		if (!isPickerActive && statusMessage === "Click an element on the page...") {
+			setStatusMessage("");
+		}
+	}, [isPickerActive, statusMessage]);
+
 	const handleAddField = async () => {
-		if (!schema) return;
+		if (!schema || isPickerActive) return;
 		try {
+			setIsPickerActive(true);
 			setStatusMessage("Click an element on the page...");
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 			if (tab?.id) {
@@ -68,6 +106,7 @@ export function SchemaEditor({
 		} catch (err) {
 			console.error("Start selection failed:", err);
 			setStatusMessage("Error starting picker");
+			setIsPickerActive(false);
 			setTimeout(() => setStatusMessage(""), 3000);
 		}
 	};
@@ -139,11 +178,11 @@ export function SchemaEditor({
 		? "text-[#8a7272] hover:text-red-500 bg-white border-[#f5c2c8]"
 		: "text-gray-550 hover:text-red-500 bg-gray-800 border-gray-700/60";
 	const addFieldBtnClass = isSakura
-		? "bg-[#f68799] hover:bg-[#e26275] text-white"
-		: "bg-blue-600 hover:bg-blue-500 text-white";
+		? "bg-[#f68799] hover:bg-[#e26275] disabled:bg-gray-250/20 disabled:text-gray-400 text-white disabled:cursor-not-allowed"
+		: "bg-blue-600 hover:bg-blue-500 disabled:bg-gray-850 disabled:text-gray-600 text-white disabled:cursor-not-allowed";
 	const extractBtnClass = isSakura
-		? "bg-[#798c73] hover:bg-[#687a63] disabled:bg-gray-250/20 disabled:text-gray-400 text-white"
-		: "bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-850 disabled:text-gray-600 text-white";
+		? "bg-[#798c73] hover:bg-[#687a63] disabled:bg-gray-250/20 disabled:text-gray-400 text-white disabled:cursor-not-allowed"
+		: "bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-850 disabled:text-gray-600 text-white disabled:cursor-not-allowed";
 	const headingTextHoverClass = isSakura
 		? "text-[#3a2d2d] hover:text-[#f68799]"
 		: "text-gray-100 hover:text-blue-400";
@@ -315,7 +354,7 @@ export function SchemaEditor({
 					</div>
 
 					{/* Fields List */}
-					<div className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1">
+					<ul className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1 list-none p-0 m-0">
 						{schema.fields.length === 0 ? (
 							<div className="flex-1 flex flex-col justify-center items-center text-center py-8 gap-2">
 								<span className="text-lg">🖱️</span>
@@ -324,31 +363,43 @@ export function SchemaEditor({
 								</span>
 							</div>
 						) : (
-							schema.fields.map((field) => {
+							schema.fields.map((field, index) => {
 								const fieldResult = extractionResult?.fields.find(
 									(rf) => rf.fieldId === field.fieldId,
 								);
 
 								return (
-									<FieldCard
+									<li
 										key={field.fieldId}
-										field={field}
-										status={fieldResult?.status}
-										value={fieldResult?.value}
-										theme={theme}
-										onUpdateLabel={updateFieldLabel}
-										onDelete={removeField}
-									/>
+										draggable
+										onDragStart={(e) => handleDragStart(e, field.fieldId)}
+										onDragOver={(e) => handleDragOver(e, index)}
+										onDragEnd={handleDragEnd}
+										className={`cursor-grab active:cursor-grabbing transition-opacity duration-150 ${
+											draggedFieldId === field.fieldId ? "opacity-40" : "opacity-100"
+										}`}
+									>
+										<FieldCard
+											field={field}
+											status={fieldResult?.status}
+											value={fieldResult?.value}
+											theme={theme}
+											onUpdateLabel={updateFieldLabel}
+											onDelete={removeField}
+											isJustAdded={lastAddedFieldId === field.fieldId}
+										/>
+									</li>
 								);
 							})
 						)}
-					</div>
+					</ul>
 
 					{/* Action Buttons */}
 					<div className={`flex gap-2 pt-2 mt-auto border-t ${borderClass}`}>
 						<button
 							type="button"
 							onClick={handleAddField}
+							disabled={isPickerActive}
 							className={`flex-1 font-semibold text-xs py-2 px-3 rounded-lg shadow-md transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5 ${addFieldBtnClass}`}
 						>
 							<svg
@@ -371,7 +422,7 @@ export function SchemaEditor({
 						<button
 							type="button"
 							onClick={handleRunExtraction}
-							disabled={schema.fields.length === 0}
+							disabled={schema.fields.length === 0 || isPickerActive}
 							className={`flex-1 font-semibold text-xs py-2 px-3 rounded-lg shadow-md transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5 ${extractBtnClass}`}
 						>
 							<svg
