@@ -60,7 +60,6 @@ export function SchemaEditor({
 		fieldId: string;
 		fieldIndex: number;
 		currentY: number;
-		rafId: number | null;
 	} | null>(null);
 
 	useEffect(() => {
@@ -86,7 +85,9 @@ export function SchemaEditor({
 		// Check neighbor above:
 		if (fromIndex > 0) {
 			const neighborAboveId = currentFields[fromIndex - 1].fieldId;
-			const neighborAbove = list.querySelector(`li[data-field-id="${neighborAboveId}"]`) as HTMLElement;
+			const neighborAbove = list.querySelector(
+				`li[data-field-id="${neighborAboveId}"]`,
+			) as HTMLElement;
 			if (neighborAbove) {
 				const rect = neighborAbove.getBoundingClientRect();
 				// Shift midpoint by -scrollDelta to account for synchronous scrolling
@@ -100,7 +101,9 @@ export function SchemaEditor({
 		// Check neighbor below:
 		if (fromIndex < currentFields.length - 1) {
 			const neighborBelowId = currentFields[fromIndex + 1].fieldId;
-			const neighborBelow = list.querySelector(`li[data-field-id="${neighborBelowId}"]`) as HTMLElement;
+			const neighborBelow = list.querySelector(
+				`li[data-field-id="${neighborBelowId}"]`,
+			) as HTMLElement;
 			if (neighborBelow) {
 				const rect = neighborBelow.getBoundingClientRect();
 				// Shift midpoint by -scrollDelta to account for synchronous scrolling
@@ -178,7 +181,6 @@ export function SchemaEditor({
 				fieldId,
 				fieldIndex,
 				currentY: e.clientY,
-				rafId: null,
 			};
 			setDraggedFieldId(fieldId);
 

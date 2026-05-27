@@ -14,6 +14,7 @@ export interface Schema {
 	schemaId: string; // crypto.randomUUID()
 	name: string; // user-given schema name
 	url: string; // page URL where schema was defined
+	urlPattern?: string; // glob or pattern matching rules
 	fields: FieldDefinition[]; // ordered list of fields
 	createdAt: number;
 	updatedAt: number;

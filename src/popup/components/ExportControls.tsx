@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ExtractionResult } from "../../shared/types";
 
 interface ExportControlsProps {
@@ -8,6 +9,7 @@ interface ExportControlsProps {
 
 export function ExportControls({ schemaName, result, theme = "dark" }: ExportControlsProps) {
 	const isSakura = theme === "sakura";
+	const [copied, setCopied] = useState(false);
 
 	const getSafeFilename = (ext: "json" | "csv") => {
 		const safeSchemaName = schemaName.replace(/[/\\?%*:|"<>\s]+/g, "-");
@@ -48,12 +50,59 @@ export function ExportControls({ schemaName, result, theme = "dark" }: ExportCon
 		URL.revokeObjectURL(url);
 	};
 
+	const handleCopyJson = () => {
+		const simple = Object.fromEntries(result.fields.map((f) => [f.label || f.fieldId, f.value]));
+		navigator.clipboard.writeText(JSON.stringify(simple, null, 2));
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	};
+
 	const btnClass = isSakura
-		? "flex-1 px-3 py-2 bg-white border border-[#f5c2c8] text-[#7d6767] hover:bg-[#fae6e8]/40 font-semibold text-xs rounded-lg transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5"
-		: "flex-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 font-semibold text-xs rounded-lg transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5";
+		? "flex-1 px-2.5 py-2 bg-white border border-[#f5c2c8] text-[#7d6767] hover:bg-[#fae6e8]/40 font-semibold text-xs rounded-lg transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5"
+		: "flex-1 px-2.5 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 font-semibold text-xs rounded-lg transition duration-150 ease-in-out cursor-pointer flex items-center justify-center gap-1.5";
 
 	return (
 		<div className="flex gap-2 w-full transition-colors duration-300 ease-in-out">
+			<button type="button" onClick={handleCopyJson} className={btnClass}>
+				{copied ? (
+					<>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke={isSakura ? "#d85f70" : "#10b981"}
+							strokeWidth="3"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<title>Check Icon</title>
+							<polyline points="20 6 9 17 4 12" />
+						</svg>
+						<span className={isSakura ? "text-[#d85f70]" : "text-emerald-400"}>Copied!</span>
+					</>
+				) : (
+					<>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2.5"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<title>Copy Icon</title>
+							<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+							<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+						</svg>
+						<span>Copy JSON</span>
+					</>
+				)}
+			</button>
 			<button type="button" onClick={handleExportJson} className={btnClass}>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"

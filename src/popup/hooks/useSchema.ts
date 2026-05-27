@@ -6,6 +6,7 @@ import {
 	updateSchemaField,
 } from "../../shared/chrome-storage";
 import type { FieldDefinition, MessageType, Schema } from "../../shared/types";
+import { matchUrl } from "../../shared/url-matcher";
 
 export function useSchema() {
 	const [schema, setSchema] = useState<Schema | null>(null);
@@ -19,7 +20,7 @@ export function useSchema() {
 		setLoading(true);
 		try {
 			const allSchemas = await getAllSchemas();
-			const found = allSchemas.find((s) => s.url === currentUrl);
+			const found = allSchemas.find((s) => matchUrl(s.url, s.urlPattern, currentUrl));
 			setSchema(found || null);
 		} catch (err) {
 			console.error("Failed to load schema:", err);
