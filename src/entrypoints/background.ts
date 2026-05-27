@@ -18,6 +18,8 @@ export default defineBackground({
 	},
 });
 
+const sessionEmbeddingCache = new Map<string, number[]>();
+
 async function handleMessage(
 	message: MessageType,
 	sendResponse: (response?: unknown) => void,
@@ -25,7 +27,11 @@ async function handleMessage(
 	try {
 		if (message.type === "GENERATE_EMBEDDING") {
 			const start = Date.now();
-			const embedding = await generateEmbedding(message.text);
+			let embedding = sessionEmbeddingCache.get(message.text);
+			if (!embedding) {
+				embedding = await generateEmbedding(message.text);
+				sessionEmbeddingCache.set(message.text, embedding);
+			}
 			console.log(`[background] GENERATE_EMBEDDING finished in ${Date.now() - start}ms`);
 			sendResponse({ embedding });
 		} else if (message.type === "COMPUTE_SIMILARITY") {
@@ -33,9 +39,13 @@ async function handleMessage(
 			// Generate embeddings for all candidate text strings
 			const candidatesList = await Promise.all(
 				message.candidateTexts.map(async (text) => {
-					const embedding = await generateEmbedding(text);
+					let embedding = sessionEmbeddingCache.get(text);
+					if (!embedding) {
+						embedding = await generateEmbedding(text);
+						sessionEmbeddingCache.set(text, embedding);
+					}
 					return {
-						text,
+						textContent: text,
 						embedding,
 						cssSelector: "",
 						xpathSelector: "",
@@ -48,7 +58,11 @@ async function handleMessage(
 		} else if (message.type === "FIELD_SELECTED") {
 			const start = Date.now();
 			// Generate embedding for the field's text content
-			const embedding = await generateEmbedding(message.field.textContent);
+			let embedding = sessionEmbeddingCache.get(message.field.textContent);
+			if (!embedding) {
+				embedding = await generateEmbedding(message.field.textContent);
+				sessionEmbeddingCache.set(message.field.textContent, embedding);
+			}
 			const completeField = {
 				...message.field,
 				embedding,
@@ -122,11 +136,11 @@ async function handleMessage(
 			}
 
 			console.log(
-				`[background] Received ${candidates.length} candidates from content script. Processing embeddings in chunks of 10...`,
+				`[background] Received ${candidates.length} candidates from content script. Processing embeddings in chunks of 25...`,
 			);
 
-			// 3. Batch generate embeddings (chunks of 10)
-			const chunkSize = 10;
+			// 3. Batch generate embeddings (chunks of 25)
+			const chunkSize = 25;
 			const candidatesWithEmbeddings = [];
 			const total = candidates.length;
 
@@ -135,7 +149,11 @@ async function handleMessage(
 				const results = await Promise.all(
 					chunk.map(async (cand) => {
 						try {
-							const embedding = await generateEmbedding(cand.text);
+							let embedding = sessionEmbeddingCache.get(cand.text);
+							if (!embedding) {
+								embedding = await generateEmbedding(cand.text);
+								sessionEmbeddingCache.set(cand.text, embedding);
+							}
 							return {
 								textContent: cand.text,
 								cssSelector: cand.cssSelector,

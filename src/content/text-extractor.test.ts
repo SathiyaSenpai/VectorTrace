@@ -115,7 +115,7 @@ describe("text-extractor engine", () => {
 			expect(texts).not.toContain("picker overlay");
 		});
 
-		it("should limit elements and sort them by length descending", () => {
+		it("should limit elements and sort them by length ascending", () => {
 			document.body.innerHTML = `
 				<p>Three</p>
 				<p>Seventeen</p>
@@ -125,13 +125,27 @@ describe("text-extractor engine", () => {
 			const elements = enumeratePageElements();
 			const texts = elements.map((e) => e.text);
 
-			// Should be sorted by text length descending:
-			// "Thirty-three" (12 chars) -> "Seventeen" (9 chars) -> "Three" (5 chars)
-			// Wait, the body element itself also contains the text.
-			// The unique texts extracted would include "Thirty-three", "Seventeen", "Three".
-			// Let's verify the order of these specific elements:
+			// Should be sorted by text length ascending:
+			// "Three" (5 chars) -> "Seventeen" (9 chars) -> "Thirty-three" (12 chars)
 			const filteredTexts = texts.filter((t) => ["Three", "Seventeen", "Thirty-three"].includes(t));
-			expect(filteredTexts).toEqual(["Thirty-three", "Seventeen", "Three"]);
+			expect(filteredTexts).toEqual(["Three", "Seventeen", "Thirty-three"]);
+		});
+
+		it("should skip invisible elements (display:none, visibility:hidden, opacity:0)", () => {
+			document.body.innerHTML = `
+				<p style="display: none;">Invisible Display</p>
+				<p style="visibility: hidden;">Invisible Visibility</p>
+				<p style="opacity: 0;">Invisible Opacity</p>
+				<p>Visible Element</p>
+			`;
+
+			const elements = enumeratePageElements();
+			const texts = elements.map((e) => e.text);
+
+			expect(texts).toContain("Visible Element");
+			expect(texts).not.toContain("Invisible Display");
+			expect(texts).not.toContain("Invisible Visibility");
+			expect(texts).not.toContain("Invisible Opacity");
 		});
 	});
 });

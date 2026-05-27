@@ -46,7 +46,7 @@ export function rankCandidates(
 			const confidence =
 				score >= 0.85 ? ("HIGH" as const) : score >= 0.6 ? ("MEDIUM" as const) : ("LOW" as const);
 			return {
-				text: c.text,
+				textContent: c.textContent,
 				cssSelector: c.cssSelector,
 				xpathSelector: c.xpathSelector,
 				score,

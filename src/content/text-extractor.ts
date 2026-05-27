@@ -141,6 +141,18 @@ export function enumeratePageElements(): {
 			if (el.hasAttribute("data-vectortrace")) {
 				return NodeFilter.FILTER_REJECT;
 			}
+			const style = window.getComputedStyle(el);
+			if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+				return NodeFilter.FILTER_REJECT;
+			}
+			// Skip bounding rect check in test environments where layout engine is not present
+			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+			if (!isTest) {
+				const rect = el.getBoundingClientRect();
+				if (rect.width === 0 && rect.height === 0) {
+					return NodeFilter.FILTER_REJECT;
+				}
+			}
 			return NodeFilter.FILTER_ACCEPT;
 		},
 	});
@@ -166,8 +178,8 @@ export function enumeratePageElements(): {
 		}
 	}
 
-	// Sort by textContent length descending
-	uniqueCandidates.sort((a, b) => b.text.length - a.text.length);
+	// Sort by textContent length ascending
+	uniqueCandidates.sort((a, b) => a.text.length - b.text.length);
 
 	// Take top 500 candidates
 	const topCandidates = uniqueCandidates.slice(0, 500);
