@@ -10,18 +10,32 @@ import { matchUrl } from "../../shared/url-matcher";
 
 export function useSchema() {
 	const [schema, setSchema] = useState<Schema | null>(null);
+	const [matchingSchemas, setMatchingSchemas] = useState<Schema[]>([]);
 	const [url, setUrl] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(true);
 	const [lastAddedFieldId, setLastAddedFieldId] = useState<string | null>(null);
 	const [isPickerActive, setIsPickerActive] = useState<boolean>(false);
 
-	const loadSchema = useCallback(async (currentUrl: string) => {
+	const loadSchema = useCallback(async (currentUrl: string, selectSchemaId?: string) => {
 		if (!currentUrl) return;
 		setLoading(true);
 		try {
 			const allSchemas = await getAllSchemas();
-			const found = allSchemas.find((s) => matchUrl(s.url, s.urlPattern, currentUrl));
-			setSchema(found || null);
+			const matched = allSchemas.filter((s) => matchUrl(s.url, s.urlPattern, currentUrl));
+			setMatchingSchemas(matched);
+
+			if (selectSchemaId) {
+				const found = matched.find((s) => s.schemaId === selectSchemaId);
+				setSchema(found || matched[0] || null);
+			} else {
+				setSchema((prev) => {
+					if (prev) {
+						const found = matched.find((s) => s.schemaId === prev.schemaId);
+						if (found) return found;
+					}
+					return matched[0] || null;
+				});
+			}
 		} catch (err) {
 			console.error("Failed to load schema:", err);
 		} finally {
@@ -76,7 +90,6 @@ export function useSchema() {
 	// Track the "NEW" badge duration across extension reopenings
 	useEffect(() => {
 		let isMounted = true;
-		const _hasSchema = !!schema; // Reference schema to keep dependency list happy
 		chrome.storage.local.get(["lastAddedFieldId", "lastAddedFieldTime"], (data) => {
 			if (!isMounted) return;
 			if (data.lastAddedFieldId && data.lastAddedFieldTime) {
@@ -100,7 +113,7 @@ export function useSchema() {
 		return () => {
 			isMounted = false;
 		};
-	}, [schema]);
+	}, []);
 
 	// Listen for FIELD_SELECTED messages to refresh the schema state
 	useEffect(() => {
@@ -110,7 +123,7 @@ export function useSchema() {
 			if (message.type === "FIELD_SELECTED") {
 				// Delay slightly to ensure background database writes complete
 				setTimeout(async () => {
-					await loadSchema(url);
+					await loadSchema(url, schema?.schemaId);
 				}, 600);
 			} else if (message.type === "PICKER_CANCELLED") {
 				setIsPickerActive(false);
@@ -121,7 +134,7 @@ export function useSchema() {
 		return () => {
 			chrome.runtime.onMessage.removeListener(messageListener);
 		};
-	}, [url, loadSchema]);
+	}, [url, loadSchema, schema?.schemaId]);
 
 	const createSchema = async (name: string) => {
 		if (!url) return;
@@ -134,7 +147,7 @@ export function useSchema() {
 			updatedAt: Date.now(),
 		};
 		await saveSchema(newSchema);
-		setSchema(newSchema);
+		await loadSchema(url, newSchema.schemaId);
 	};
 
 	const deleteSchema = async () => {
@@ -144,7 +157,8 @@ export function useSchema() {
 		// Clean up fields in IndexedDB as well
 		const { deleteFieldsBySchema } = await import("../../shared/idb-store");
 		await deleteFieldsBySchema(schema.schemaId);
-		setSchema(null);
+
+		await loadSchema(url);
 	};
 
 	const updateSchemaName = async (name: string) => {
@@ -155,22 +169,13 @@ export function useSchema() {
 			updatedAt: Date.now(),
 		};
 		await saveSchema(updatedSchema);
-		setSchema(updatedSchema);
+		await loadSchema(url, schema.schemaId);
 	};
 
 	const updateFieldLabel = async (fieldId: string, label: string) => {
 		if (!schema) return;
 		await updateSchemaField(schema.schemaId, fieldId, { label: label.trim() });
-
-		// Map the state change locally to avoid layout shift
-		setSchema((prev) => {
-			if (!prev) return null;
-			return {
-				...prev,
-				fields: prev.fields.map((f) => (f.fieldId === fieldId ? { ...f, label: label.trim() } : f)),
-				updatedAt: Date.now(),
-			};
-		});
+		await loadSchema(url, schema.schemaId);
 	};
 
 	const removeField = async (fieldId: string) => {
@@ -186,7 +191,7 @@ export function useSchema() {
 		const { deleteFieldEmbedding } = await import("../../shared/idb-store");
 		await deleteFieldEmbedding(fieldId);
 
-		setSchema(updatedSchema);
+		await loadSchema(url, schema.schemaId);
 	};
 
 	const reorderFields = async (orderedFields: FieldDefinition[]) => {
@@ -197,8 +202,15 @@ export function useSchema() {
 			updatedAt: Date.now(),
 		};
 		await saveSchema(updatedSchema);
-		setSchema(updatedSchema);
+		await loadSchema(url, schema.schemaId);
 	};
+
+	const selectSchema = useCallback(
+		async (schemaId: string) => {
+			await loadSchema(url, schemaId);
+		},
+		[url, loadSchema],
+	);
 
 	const isRestricted =
 		url.startsWith("chrome://") ||
@@ -210,6 +222,7 @@ export function useSchema() {
 
 	return {
 		schema,
+		matchingSchemas,
 		url,
 		loading,
 		isRestricted,
@@ -219,9 +232,10 @@ export function useSchema() {
 		updateFieldLabel,
 		removeField,
 		reorderFields,
+		selectSchema,
 		lastAddedFieldId,
 		isPickerActive,
 		setIsPickerActive,
-		reloadSchema: () => loadSchema(url),
+		reloadSchema: () => loadSchema(url, schema?.schemaId),
 	};
 }

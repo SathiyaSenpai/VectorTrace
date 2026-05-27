@@ -10,6 +10,7 @@ import type { FieldDefinition } from "../../shared/types";
 export default function App() {
 	const {
 		schema,
+		matchingSchemas,
 		url,
 		loading,
 		isRestricted,
@@ -19,6 +20,7 @@ export default function App() {
 		updateFieldLabel,
 		removeField,
 		reorderFields,
+		selectSchema,
 		lastAddedFieldId,
 		isPickerActive,
 		setIsPickerActive,
@@ -212,6 +214,37 @@ export default function App() {
 					Semantic Web Scraper
 				</span>
 			</div>
+
+			{/* Schema Picker Dropdown if multiple schemas exist */}
+			{!isRestricted && !loading && matchingSchemas.length > 1 && (
+				<div
+					className={`px-4 py-1.5 border-b flex items-center justify-between transition-colors duration-300 ${
+						isSakura
+							? "bg-[#fff0f2] border-[#fbc5c5] text-[#7d6767]"
+							: "bg-gray-950 border-gray-800 text-gray-400"
+					}`}
+				>
+					<span className="text-[9px] font-extrabold tracking-wider uppercase">Scraper Scope:</span>
+					<div className="relative flex items-center">
+						<select
+							value={schema?.schemaId || ""}
+							onChange={(e) => selectSchema(e.target.value)}
+							className={`text-[10px] font-bold py-0.5 pl-2 pr-6 rounded border appearance-none outline-none cursor-pointer transition-all duration-300 ${
+								isSakura
+									? "bg-white border-[#f5c2c8] text-[#3a2d2d] focus:border-[#f68799]"
+									: "bg-gray-900 border-gray-700 text-gray-200 focus:border-blue-500"
+							}`}
+						>
+							{matchingSchemas.map((s) => (
+								<option key={s.schemaId} value={s.schemaId}>
+									{s.name} ({s.fields.length} {s.fields.length === 1 ? "field" : "fields"})
+								</option>
+							))}
+						</select>
+						<span className="pointer-events-none absolute right-2 text-[8px] opacity-70">▼</span>
+					</div>
+				</div>
+			)}
 
 			{/* Tab Navigation with sliding indicator */}
 			{activeTab !== "HEALING" && (

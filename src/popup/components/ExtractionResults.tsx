@@ -121,7 +121,7 @@ export function ExtractionResults({
 			</div>
 
 			{/* Results Table */}
-			<div className="flex-1 overflow-y-auto max-h-[220px] pr-1">
+			<div className="flex-1 overflow-y-auto max-h-[220px] pr-1 custom-scrollbar">
 				<table className="w-full text-sm text-left border-collapse">
 					<thead>
 						<tr

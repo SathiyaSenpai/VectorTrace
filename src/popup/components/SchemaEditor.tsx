@@ -173,6 +173,19 @@ export function SchemaEditor({
 		(e: React.PointerEvent, fieldId: string, fieldIndex: number) => {
 			// Only respond to primary button (left click)
 			if (e.button !== 0) return;
+
+			// Do not start drag if clicking interactive elements inside the card
+			const target = e.target as HTMLElement;
+			if (
+				target.closest("button") ||
+				target.closest("input") ||
+				target.closest("select") ||
+				target.closest("textarea") ||
+				target.contentEditable === "true"
+			) {
+				return;
+			}
+
 			e.preventDefault();
 			e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -271,24 +284,16 @@ export function SchemaEditor({
 	const handleRunExtraction = async () => {
 		if (!schema) return;
 		if (onExtract) {
-			setStatusMessage("Running extraction...");
 			try {
 				await onExtract();
-				setStatusMessage("Extraction complete");
-				setTimeout(() => {
-					setStatusMessage("");
-					onShowResults();
-				}, 600);
+				onShowResults();
 			} catch (err) {
-				const errMsg = err instanceof Error ? err.message : "Failed";
-				setStatusMessage(`Error: ${errMsg}`);
-				setTimeout(() => setStatusMessage(""), 3000);
+				console.error("Run extraction failed:", err);
 			}
 			return;
 		}
 
 		try {
-			setStatusMessage("Running extraction...");
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 			if (tab?.id) {
 				const response = (await sendMessageWithRetry(tab.id, {
@@ -297,18 +302,11 @@ export function SchemaEditor({
 				})) as { error?: string; result?: ExtractionResult } | undefined;
 				if (response?.result) {
 					setExtractionResult(response.result);
-					setStatusMessage("Extraction complete");
-					setTimeout(() => {
-						setStatusMessage("");
-						onShowResults();
-					}, 600);
-				} else if (response?.error) {
-					setStatusMessage(`Error: ${response.error}`);
+					onShowResults();
 				}
 			}
 		} catch (err) {
 			console.error("Run extraction failed:", err);
-			setStatusMessage("Failed. Is content script loaded?");
 		}
 	};
 
