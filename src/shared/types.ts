@@ -70,4 +70,7 @@ export type MessageType =
 	| {
 			type: "CANDIDATES_FOUND";
 			candidates: { text: string; cssSelector: string; xpathSelector: string }[];
-	  };
+	  }
+	| { type: "OFFSCREEN_GENERATE_EMBEDDING"; text: string }
+	| { type: "MODEL_DOWNLOAD_PROGRESS"; progress: number }
+	| { type: "MODEL_DOWNLOAD_COMPLETE" };

@@ -4,6 +4,7 @@ import { ExtractionResults } from "../../popup/components/ExtractionResults";
 import { SchemaEditor } from "../../popup/components/SchemaEditor";
 import { useExtraction } from "../../popup/hooks/useExtraction";
 import { useSchema } from "../../popup/hooks/useSchema";
+import { getDB } from "../../shared/idb-store";
 import type { FieldDefinition } from "../../shared/types";
 
 export default function App() {
@@ -20,7 +21,7 @@ export default function App() {
 		reloadSchema,
 	} = useSchema();
 
-	const { extractionResult, setExtractionResult, runExtraction } = useExtraction();
+	const { extractionResult, setExtractionResult, isExtracting, runExtraction } = useExtraction();
 
 	const [activeTab, setActiveTab] = useState<"SCHEMA" | "RESULTS" | "SETTINGS" | "HEALING">(
 		"SCHEMA",
@@ -83,6 +84,8 @@ export default function App() {
 			)
 		) {
 			await chrome.storage.local.clear();
+			const db = await getDB();
+			await db.clear("embeddings");
 			showToast("Database reset successfully", "success");
 			setTimeout(() => {
 				window.location.reload();

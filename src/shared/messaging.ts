@@ -38,12 +38,12 @@ export async function sendMessageWithRetry(
 						target: { tabId },
 						files: ["content-scripts/content.js"],
 					});
-					// Wait a moment for the script to load and boot
 					await new Promise((resolve) => setTimeout(resolve, 300));
 				} catch (injectError) {
 					console.error("[messaging] Failed to auto-inject content script:", injectError);
 				}
-			} else if (attempts >= maxAttempts) {
+			} else {
+				// Rethrow immediately for non-connection errors, or after max attempts
 				throw error;
 			}
 		}

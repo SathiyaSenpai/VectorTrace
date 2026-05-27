@@ -18,14 +18,14 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 interface SimilarityCandidate {
-	text: string;
+	textContent: string;
 	embedding: number[];
 	cssSelector: string;
 	xpathSelector: string;
 }
 
 interface RankedCandidate {
-	text: string;
+	textContent: string;
 	cssSelector: string;
 	xpathSelector: string;
 	score: number;

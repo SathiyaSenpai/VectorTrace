@@ -59,7 +59,7 @@ export default defineContentScript({
 			} else if (message.type === "RUN_EXTRACTION") {
 				handleRunExtraction(message.schemaId, sendResponse);
 				return true;
-			} else if (message.type === "FIND_CANDIDATES" || message.type === "ENUMERATE_PAGE") {
+			} else if (message.type === "ENUMERATE_PAGE") {
 				console.log(`[VectorTrace] Received page enumeration request: "${message.type}"`);
 				const candidates = enumeratePageElements();
 				console.log(
