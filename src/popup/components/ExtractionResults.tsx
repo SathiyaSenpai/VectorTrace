@@ -155,7 +155,21 @@ export function ExtractionResults({
 										className={`py-2 px-2.5 font-mono break-all max-w-[130px] border rounded text-xs ${valueTextClass}`}
 										title={f.value}
 									>
-										{f.value || <span className="text-gray-500 italic">[empty]</span>}
+										<div className="flex items-center justify-between gap-1 group w-full">
+											<span className="truncate select-text flex-1">
+												{f.value || <span className="text-gray-500 italic">[empty]</span>}
+											</span>
+											{f.value && (
+												<button
+													type="button"
+													onClick={() => navigator.clipboard.writeText(f.value)}
+													className="opacity-0 group-hover:opacity-100 transition text-gray-500 hover:text-gray-300 ml-1 flex-shrink-0 cursor-pointer"
+													title="Copy value"
+												>
+													📋
+												</button>
+											)}
+										</div>
 									</td>
 									<td className="py-2 px-2.5 text-center">
 										<div className="flex flex-col items-center justify-center gap-1">

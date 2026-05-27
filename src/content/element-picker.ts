@@ -1,13 +1,15 @@
 export class ElementPicker {
 	private onSelect: (element: HTMLElement) => void;
+	private onDeactivate?: () => void;
 	private active = false;
 	private overlay: HTMLDivElement | null = null;
 	private tooltip: HTMLDivElement | null = null;
 	private closeButton: HTMLButtonElement | null = null;
 	private originalBodyCursor = "";
 
-	constructor(options: { onSelect: (element: HTMLElement) => void }) {
+	constructor(options: { onSelect: (element: HTMLElement) => void; onDeactivate?: () => void }) {
 		this.onSelect = options.onSelect;
+		this.onDeactivate = options.onDeactivate;
 	}
 
 	public activate(): void {
@@ -32,6 +34,9 @@ export class ElementPicker {
 		document.removeEventListener("keydown", this.handleKeyDown, true);
 
 		this.cleanupElements();
+		if (this.onDeactivate) {
+			this.onDeactivate();
+		}
 	}
 
 	private createElements(): void {
@@ -157,11 +162,9 @@ export class ElementPicker {
 		}
 
 		if (this.tooltip) {
-			let text = target.tagName.toLowerCase();
-			if (target.classList.length > 0) {
-				text += `.${target.classList[0]}`;
-			}
-			this.tooltip.textContent = text;
+			const preview = target.textContent?.trim().slice(0, 40) || "";
+			const tag = target.tagName.toLowerCase();
+			this.tooltip.textContent = preview ? `"${preview}"` : tag;
 			this.tooltip.style.display = "block";
 		}
 	};
