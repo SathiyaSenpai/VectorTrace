@@ -87,13 +87,17 @@ export default function App() {
 				"Are you sure you want to delete all VectorTrace scrapers? This cannot be undone.",
 			)
 		) {
+			const currentTheme = theme;
 			await chrome.storage.local.clear();
+			await chrome.storage.local.set({ theme: currentTheme });
+
 			const db = await getDB();
 			await db.clear("embeddings");
+
+			setExtractionResult(null);
+			reloadSchema();
+
 			showToast("Database reset successfully", "success");
-			setTimeout(() => {
-				window.location.reload();
-			}, 1000);
 		}
 	};
 

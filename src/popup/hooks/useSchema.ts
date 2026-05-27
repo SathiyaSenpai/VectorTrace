@@ -59,10 +59,9 @@ export function useSchema() {
 
 		const messageListener = (message: MessageType) => {
 			if (message.type === "FIELD_SELECTED") {
-				setIsPickerActive(false);
 				// Delay slightly to ensure background database writes complete
-				setTimeout(() => {
-					loadSchema(url);
+				setTimeout(async () => {
+					await loadSchema(url);
 					setLastAddedFieldId(message.field.fieldId);
 					setTimeout(() => setLastAddedFieldId(null), 1500);
 				}, 600);
