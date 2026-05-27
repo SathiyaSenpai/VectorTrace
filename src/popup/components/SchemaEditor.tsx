@@ -49,9 +49,11 @@ export function SchemaEditor({
 	const fieldsListRef = useRef<HTMLUListElement>(null);
 	const [localFields, setLocalFields] = useState<FieldDefinition[]>(schema?.fields || []);
 	const localFieldsRef = useRef(localFields);
+	const isPendingRender = useRef(false);
 
 	useEffect(() => {
 		localFieldsRef.current = localFields;
+		isPendingRender.current = false;
 	}, [localFields]);
 
 	// Internal refs that don't need to cause re-renders
@@ -90,7 +92,6 @@ export function SchemaEditor({
 			) as HTMLElement;
 			if (neighborAbove) {
 				const rect = neighborAbove.getBoundingClientRect();
-				// Shift midpoint by -scrollDelta to account for synchronous scrolling
 				const mid = rect.top + rect.height / 2 - scrollDelta;
 				if (clientY < mid) {
 					return fromIndex - 1;
@@ -106,7 +107,6 @@ export function SchemaEditor({
 			) as HTMLElement;
 			if (neighborBelow) {
 				const rect = neighborBelow.getBoundingClientRect();
-				// Shift midpoint by -scrollDelta to account for synchronous scrolling
 				const mid = rect.top + rect.height / 2 - scrollDelta;
 				if (clientY > mid) {
 					return fromIndex + 1;
@@ -120,6 +120,10 @@ export function SchemaEditor({
 	// A function that is called continuously to handle scrolling and reordering
 	const updateDragPosition = useCallback(() => {
 		if (!dragState.current?.active) return;
+		if (isPendingRender.current) {
+			dragScrollLoop.current = requestAnimationFrame(updateDragPosition);
+			return;
+		}
 
 		const list = fieldsListRef.current;
 		if (list) {
@@ -153,6 +157,7 @@ export function SchemaEditor({
 					const [moved] = next.splice(fromIndex, 1);
 					next.splice(targetIndex, 0, moved);
 					localFieldsRef.current = next; // Update ref synchronously to prevent frame race conditions
+					isPendingRender.current = true; // Block further swaps until React render updates DOM
 					return next;
 				});
 			}
@@ -544,9 +549,6 @@ export function SchemaEditor({
 										key={field.fieldId}
 										data-field-id={field.fieldId}
 										onPointerDown={(e) => handlePointerDown(e, field.fieldId, index)}
-										onPointerMove={handlePointerMove}
-										onPointerUp={handlePointerUp}
-										onPointerCancel={handlePointerUp}
 										style={{ touchAction: "none", userSelect: "none" }}
 										className={`cursor-grab active:cursor-grabbing transition-all duration-150 relative rounded-lg ${
 											draggedFieldId === field.fieldId
