@@ -152,6 +152,7 @@ export function SchemaEditor({
 					const next = [...prev];
 					const [moved] = next.splice(fromIndex, 1);
 					next.splice(targetIndex, 0, moved);
+					localFieldsRef.current = next; // Update ref synchronously to prevent frame race conditions
 					return next;
 				});
 			}
@@ -187,7 +188,6 @@ export function SchemaEditor({
 			}
 
 			e.preventDefault();
-			e.currentTarget.setPointerCapture(e.pointerId);
 
 			dragState.current = {
 				active: true,
@@ -204,26 +204,40 @@ export function SchemaEditor({
 		[updateDragPosition],
 	);
 
-	const handlePointerMove = useCallback((e: React.PointerEvent) => {
-		if (dragState.current?.active) {
-			dragState.current.currentY = e.clientY;
-		}
-	}, []);
+	// Global pointer listeners to handle drag coordinates and release robustly
+	useEffect(() => {
+		if (!draggedFieldId) return;
 
-	const handlePointerUp = useCallback(() => {
-		if (!dragState.current?.active) return;
-		if (dragScrollLoop.current !== null) {
-			cancelAnimationFrame(dragScrollLoop.current);
-			dragScrollLoop.current = null;
-		}
-		dragState.current = null;
-		setDraggedFieldId(null);
-		// Use functional updater to get latest localFields without adding it as dep
-		setLocalFields((current) => {
-			reorderFields(current);
-			return current;
-		});
-	}, [reorderFields]);
+		const handleGlobalPointerMove = (e: PointerEvent) => {
+			if (dragState.current?.active) {
+				dragState.current.currentY = e.clientY;
+			}
+		};
+
+		const handleGlobalPointerUp = () => {
+			if (!dragState.current?.active) return;
+			if (dragScrollLoop.current !== null) {
+				cancelAnimationFrame(dragScrollLoop.current);
+				dragScrollLoop.current = null;
+			}
+			dragState.current = null;
+			setDraggedFieldId(null);
+			setLocalFields((current) => {
+				reorderFields(current);
+				return current;
+			});
+		};
+
+		window.addEventListener("pointermove", handleGlobalPointerMove);
+		window.addEventListener("pointerup", handleGlobalPointerUp);
+		window.addEventListener("pointercancel", handleGlobalPointerUp);
+
+		return () => {
+			window.removeEventListener("pointermove", handleGlobalPointerMove);
+			window.removeEventListener("pointerup", handleGlobalPointerUp);
+			window.removeEventListener("pointercancel", handleGlobalPointerUp);
+		};
+	}, [draggedFieldId, reorderFields]);
 
 	// Scroll wheel support while dragging
 	useEffect(() => {
