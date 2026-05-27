@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ExtractionResult, FieldDefinition, Schema } from "../../shared/types";
 import { sendMessageWithRetry } from "../utils/messaging";
 import { FieldCard } from "./FieldCard";
@@ -45,6 +45,24 @@ export function SchemaEditor({
 	const [newSchemaName, setNewSchemaName] = useState("");
 	const [statusMessage, setStatusMessage] = useState("");
 	const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+	const fieldsListRef = useRef<HTMLUListElement>(null);
+	const prevFieldsLength = useRef(schema?.fields.length || 0);
+
+	useEffect(() => {
+		const currentLength = schema?.fields.length || 0;
+		if (currentLength > prevFieldsLength.current) {
+			if (fieldsListRef.current) {
+				fieldsListRef.current.scrollTop = fieldsListRef.current.scrollHeight;
+			}
+		}
+		prevFieldsLength.current = currentLength;
+	}, [schema?.fields.length]);
+
+	const handleWheel = (e: React.WheelEvent<HTMLUListElement>) => {
+		if (draggedFieldId !== null) {
+			e.currentTarget.scrollTop += e.deltaY;
+		}
+	};
 
 	const handleDragStart = (e: React.DragEvent, fieldId: string) => {
 		setDraggedFieldId(fieldId);
@@ -354,7 +372,11 @@ export function SchemaEditor({
 					</div>
 
 					{/* Fields List */}
-					<ul className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1 list-none p-0 m-0">
+					<ul
+						ref={fieldsListRef}
+						onWheel={handleWheel}
+						className="flex-1 flex flex-col gap-2 overflow-y-auto max-h-[220px] pr-1 list-none p-0 m-0"
+					>
 						{schema.fields.length === 0 ? (
 							<div className="flex-1 flex flex-col justify-center items-center text-center py-8 gap-2">
 								<span className="text-lg">🖱️</span>

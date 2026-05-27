@@ -48,8 +48,8 @@ export function FieldCard({
 	const isSakura = theme === "sakura";
 	const cardClass = isJustAdded
 		? isSakura
-			? "bg-[#798c73]/10 border-[#798c73] text-[#3a2d2d] shadow-[0_0_12px_rgba(121,140,115,0.25)] animate-pulse"
-			: "bg-green-950/30 border-green-500 text-gray-100 shadow-[0_0_12px_rgba(34,197,94,0.25)] animate-pulse"
+			? "bg-rose-100/30 border-rose-400 text-[#3a2d2d] shadow-[0_0_15px_rgba(244,63,94,0.35)] ring-1 ring-rose-400/30 animate-pulse"
+			: "bg-emerald-950/40 border-emerald-500 text-gray-100 shadow-[0_0_15px_rgba(16,185,129,0.35)] ring-1 ring-emerald-500/30 animate-pulse"
 		: isSakura
 			? "bg-white border-[#f5c2c8] hover:border-[#f68799] text-[#3a2d2d]"
 			: "bg-gray-800 border-gray-700 hover:border-gray-650 text-gray-100";
@@ -70,7 +70,7 @@ export function FieldCard({
 
 	return (
 		<div
-			className={`rounded-lg p-3 border transition-all duration-150 ease-in-out flex flex-col gap-1.5 w-full hover:scale-[1.01] ${cardClass}`}
+			className={`rounded-lg p-3 border transition-all duration-150 ease-in-out flex flex-col gap-1.5 w-full hover:shadow-sm ${cardClass}`}
 		>
 			<div className="flex items-center justify-between gap-2">
 				{/* Inline Edit Label */}
@@ -157,7 +157,7 @@ export function FieldCard({
 
 			{/* CSS Selector */}
 			<div
-				className={`font-mono text-[10.5px] truncate select-all cursor-help ${selectorClass}`}
+				className={`font-mono text-[10.5px] truncate select-all cursor-default ${selectorClass}`}
 				title={`Selector: ${field.cssSelector}\nXPath: ${field.xpathSelector}`}
 			>
 				{field.cssSelector}
