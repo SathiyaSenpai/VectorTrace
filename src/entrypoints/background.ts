@@ -171,6 +171,32 @@ async function handleMessage(
 
 			console.log(`[background] FIND_CANDIDATES finished in ${Date.now() - start}ms`);
 			sendResponse({ candidates: ranked });
+		} else if (message.type === "RUN_EXTRACTION") {
+			const start = Date.now();
+			const { schemaId } = message;
+
+			// Find the active tab in current window
+			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+			if (!tab?.id) {
+				throw new Error("No active tab found");
+			}
+
+			console.log(
+				`[background] Forwarding RUN_EXTRACTION to tab ${tab.id} for schemaId: ${schemaId}`,
+			);
+
+			// Send message to content script of the active tab using retry mechanism
+			const response = (await sendMessageWithRetry(tab.id, {
+				type: "RUN_EXTRACTION",
+				schemaId,
+			})) as { error?: string; result?: unknown } | undefined;
+
+			if (response?.error) {
+				throw new Error(response.error);
+			}
+
+			console.log(`[background] RUN_EXTRACTION finished in ${Date.now() - start}ms`);
+			sendResponse(response);
 		} else {
 			// Other messages (e.g. START_SELECTION) are routed to content scripts or other targets
 			sendResponse({ error: "Unhandled message type in background script" });

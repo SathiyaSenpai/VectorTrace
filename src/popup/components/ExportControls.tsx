@@ -9,14 +9,18 @@ interface ExportControlsProps {
 export function ExportControls({ schemaName, result, theme = "dark" }: ExportControlsProps) {
 	const isSakura = theme === "sakura";
 
+	const getSafeFilename = (ext: "json" | "csv") => {
+		const safeSchemaName = schemaName.replace(/[/\\?%*:|"<>\s]+/g, "-");
+		return `vectortrace-${safeSchemaName}-${result.timestamp}.${ext}`;
+	};
+
 	const handleExportJson = () => {
 		const jsonString = JSON.stringify(result, null, 2);
 		const blob = new Blob([jsonString], { type: "application/json;charset=utf-8;" });
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
-		const cleanSchemaName = schemaName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 		link.setAttribute("href", url);
-		link.setAttribute("download", `vectortrace-${cleanSchemaName}-${result.timestamp}.json`);
+		link.setAttribute("download", getSafeFilename("json"));
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
@@ -36,9 +40,8 @@ export function ExportControls({ schemaName, result, theme = "dark" }: ExportCon
 		const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
-		const cleanSchemaName = schemaName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 		link.setAttribute("href", url);
-		link.setAttribute("download", `vectortrace-${cleanSchemaName}-${result.timestamp}.csv`);
+		link.setAttribute("download", getSafeFilename("csv"));
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
