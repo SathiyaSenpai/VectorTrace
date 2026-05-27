@@ -43,7 +43,13 @@ Building in Public Twitter/X Thread: https://x.com/VVNG0cWBPP4oLu3
 - **UX & Clipboard Enhancements**:
   - Added hover-triggered clipboard copy buttons for extraction values.
   - Replaced aggressive toast animations with smooth, premium slide-up animations.
-- **Drag-and-Drop Reordering**: Built drag-and-drop field reordering inside the schema manager list.
+- **Drag-and-Drop Reordering**: Built custom pointer-events drag-and-drop field reordering inside the schema manager list, replacing HTML5 Native Drag & Drop.
+  - Implemented continuous, speed-scaling boundaries auto-scroll via a `requestAnimationFrame` loop.
+  - Enabled mouse scroll-wheel events to fire normally while holding/dragging a card.
+  - Resolved upward-cascading swaps by restricting updates to immediate neighbors only.
+  - Eliminated React state lag/closure bugs by storing list data in a mutable `localFieldsRef` reference.
+- **Theme-Aware Scrollbars**: Implemented webkit custom scrollbar styles mapped to the popup container (`theme-dark` / `theme-sakura`) to fit aesthetics seamlessly.
+- **Card Glow & Clipping Fixes**: Replaced outer ring outlines with soft, theme-matching neon shadows (`shadow-blue` / `shadow-pink`) at `scale-[1.02]` scale and padded the `ul` list wrapper (`px-2.5`) to prevent horizontal layout cuts during drags.
 - **Dynamic "NEW" Badges**: Added persistent, theme-aware `"NEW"` tag pills displaying for 15 seconds on newly created fields (retaining their visibility across popup closures).
 - **Element Picker Upgrades**:
   - Added 40-character content previews inside the picker hover tooltip.
