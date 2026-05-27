@@ -112,7 +112,9 @@ async function handleMessage(
 			console.log("[background] Requesting ENUMERATE_PAGE from content script...");
 			const response = (await sendMessageWithRetry(tab.id, {
 				type: "ENUMERATE_PAGE",
-			})) as { candidates?: unknown[] } | undefined;
+			})) as
+				| { candidates?: { text: string; cssSelector: string; xpathSelector: string }[] }
+				| undefined;
 
 			const candidates = response?.candidates;
 			if (!candidates || !Array.isArray(candidates)) {
@@ -135,7 +137,7 @@ async function handleMessage(
 						try {
 							const embedding = await generateEmbedding(cand.text);
 							return {
-								text: cand.text,
+								textContent: cand.text,
 								cssSelector: cand.cssSelector,
 								xpathSelector: cand.xpathSelector,
 								embedding,

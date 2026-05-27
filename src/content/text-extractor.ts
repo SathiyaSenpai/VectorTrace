@@ -1,13 +1,6 @@
 import { generateCSSSelector, generateXPath } from "./selector-generator";
 
 /**
- * Extracts the values of the defined fields from the current page.
- * Evaluates CSS selectors first, falling back to XPath selectors if not found.
- *
- * @param fields - Array of fields to extract, each containing CSS and XPath selectors.
- * @returns Array of extracted field values with their status.
- */
-/**
  * Utility function to wait for a CSS selector to appear in the DOM.
  */
 function waitForElement(selector: string, timeout = 1000): Promise<Element | null> {
@@ -85,53 +78,42 @@ function waitForXpath(xpath: string, timeout = 1000): Promise<Element | null> {
 export async function extractFields(
 	fields: { fieldId: string; label: string; cssSelector: string; xpathSelector: string }[],
 ): Promise<{ fieldId: string; label: string; value: string; status: "OK" | "SELECTOR_BROKEN" }[]> {
-	const results: {
-		fieldId: string;
-		label: string;
-		value: string;
-		status: "OK" | "SELECTOR_BROKEN";
-	}[] = [];
+	return Promise.all(
+		fields.map(async (field) => {
+			let element: Element | null = null;
 
-	for (const field of fields) {
-		let element: Element | null = null;
-
-		// 1. Try CSS Selector first
-		if (field.cssSelector) {
-			try {
-				element = await waitForElement(field.cssSelector, 1000);
-			} catch (err) {
-				console.error(`Invalid CSS selector for field "${field.label || field.fieldId}":`, err);
+			if (field.cssSelector) {
+				try {
+					element = await waitForElement(field.cssSelector, 1000);
+				} catch (err) {
+					console.error(`Invalid CSS selector for field "${field.label || field.fieldId}":`, err);
+				}
 			}
-		}
 
-		// 2. Try XPath Fallback
-		if (!element && field.xpathSelector) {
-			try {
-				element = await waitForXpath(field.xpathSelector, 1000);
-			} catch (err) {
-				console.error(`Invalid XPath selector for field "${field.label || field.fieldId}":`, err);
+			if (!element && field.xpathSelector) {
+				try {
+					element = await waitForXpath(field.xpathSelector, 1000);
+				} catch (err) {
+					console.error(`Invalid XPath selector for field "${field.label || field.fieldId}":`, err);
+				}
 			}
-		}
 
-		// 3. Populate extraction outcome
-		if (element) {
-			results.push({
-				fieldId: field.fieldId,
-				label: field.label,
-				value: element.textContent?.trim() || "",
-				status: "OK",
-			});
-		} else {
-			results.push({
+			if (element) {
+				return {
+					fieldId: field.fieldId,
+					label: field.label,
+					value: element.textContent?.trim() || "",
+					status: "OK" as const,
+				};
+			}
+			return {
 				fieldId: field.fieldId,
 				label: field.label,
 				value: "",
-				status: "SELECTOR_BROKEN",
-			});
-		}
-	}
-
-	return results;
+				status: "SELECTOR_BROKEN" as const,
+			};
+		}),
+	);
 }
 
 /**

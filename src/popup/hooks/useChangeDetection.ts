@@ -38,23 +38,7 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 				}
 
 				if (response?.candidates) {
-					// Map RankedCandidate (text) to SimilarityCandidate (textContent)
-					const mappedCandidates: SimilarityCandidate[] = response.candidates.map(
-						(c: {
-							text: string;
-							cssSelector: string;
-							xpathSelector: string;
-							score: number;
-							confidence: "HIGH" | "MEDIUM" | "LOW";
-						}) => ({
-							textContent: c.text,
-							cssSelector: c.cssSelector,
-							xpathSelector: c.xpathSelector,
-							score: c.score,
-							confidence: c.confidence,
-						}),
-					);
-					setCandidates(mappedCandidates);
+					setCandidates(response.candidates as SimilarityCandidate[]);
 				}
 			} catch (err) {
 				console.error("[useChangeDetection] Error finding candidates:", err);
