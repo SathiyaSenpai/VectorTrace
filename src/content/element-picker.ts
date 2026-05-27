@@ -12,6 +12,10 @@ export class ElementPicker {
 		this.onDeactivate = options.onDeactivate;
 	}
 
+	public isActive(): boolean {
+		return this.active;
+	}
+
 	public activate(): void {
 		if (this.active) return;
 		this.active = true;

@@ -53,6 +53,54 @@ export function useSchema() {
 		};
 	}, [loadSchema]);
 
+	// Check picker state in the content script on mount
+	useEffect(() => {
+		const checkPickerStatus = async () => {
+			try {
+				const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+				if (tab?.id) {
+					chrome.tabs.sendMessage(tab.id, { type: "GET_PICKER_STATUS" }, (response) => {
+						if (response?.isActive) {
+							setIsPickerActive(true);
+						}
+					});
+				}
+			} catch (_err) {
+				// Content script not yet loaded or doesn't support the message
+			}
+		};
+		checkPickerStatus();
+	}, []);
+
+	// Track the "NEW" badge duration across extension reopenings
+	useEffect(() => {
+		let isMounted = true;
+		const _hasSchema = !!schema; // Reference schema to keep dependency list happy
+		chrome.storage.local.get(["lastAddedFieldId", "lastAddedFieldTime"], (data) => {
+			if (!isMounted) return;
+			if (data.lastAddedFieldId && data.lastAddedFieldTime) {
+				const elapsed = Date.now() - data.lastAddedFieldTime;
+				const duration = 15000; // Keep badge visible for 15 seconds
+				if (elapsed < duration) {
+					setLastAddedFieldId(data.lastAddedFieldId);
+					const remaining = duration - elapsed;
+					const timer = setTimeout(() => {
+						if (isMounted) {
+							setLastAddedFieldId(null);
+							chrome.storage.local.remove(["lastAddedFieldId", "lastAddedFieldTime"]);
+						}
+					}, remaining);
+					return () => clearTimeout(timer);
+				} else {
+					chrome.storage.local.remove(["lastAddedFieldId", "lastAddedFieldTime"]);
+				}
+			}
+		});
+		return () => {
+			isMounted = false;
+		};
+	}, [schema]);
+
 	// Listen for FIELD_SELECTED messages to refresh the schema state
 	useEffect(() => {
 		if (!url) return;
@@ -62,8 +110,6 @@ export function useSchema() {
 				// Delay slightly to ensure background database writes complete
 				setTimeout(async () => {
 					await loadSchema(url);
-					setLastAddedFieldId(message.field.fieldId);
-					setTimeout(() => setLastAddedFieldId(null), 3000);
 				}, 600);
 			} else if (message.type === "PICKER_CANCELLED") {
 				setIsPickerActive(false);
