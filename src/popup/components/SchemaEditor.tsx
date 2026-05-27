@@ -46,18 +46,6 @@ export function SchemaEditor({
 	const [statusMessage, setStatusMessage] = useState("");
 	const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
 	const fieldsListRef = useRef<HTMLUListElement>(null);
-	useEffect(() => {
-		if (draggedFieldId === null) return;
-		const handleGlobalWheel = (e: WheelEvent) => {
-			if (fieldsListRef.current) {
-				fieldsListRef.current.scrollTop += e.deltaY;
-			}
-		};
-		window.addEventListener("wheel", handleGlobalWheel, { passive: true });
-		return () => {
-			window.removeEventListener("wheel", handleGlobalWheel);
-		};
-	}, [draggedFieldId]);
 
 	const handleDragStart = (e: React.DragEvent, fieldId: string) => {
 		setDraggedFieldId(fieldId);
@@ -67,6 +55,7 @@ export function SchemaEditor({
 	const handleDragOver = (e: React.DragEvent, index: number) => {
 		e.preventDefault();
 		if (!schema || draggedFieldId === null) return;
+
 		const dragIndex = schema.fields.findIndex((f) => f.fieldId === draggedFieldId);
 		if (dragIndex === -1 || dragIndex === index) return;
 

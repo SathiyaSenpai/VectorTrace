@@ -57,7 +57,9 @@ export default defineContentScript({
 		let activeSchemaId = "";
 
 		chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
-			if (message.type === "START_SELECTION") {
+			if (message.type === "GET_PICKER_STATUS") {
+				sendResponse({ isActive: picker.isActive() });
+			} else if (message.type === "START_SELECTION") {
 				activeSchemaId = message.schemaId;
 				picker.activate();
 				sendResponse({ success: true });

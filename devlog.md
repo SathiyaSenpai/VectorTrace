@@ -1,6 +1,6 @@
 # VectorTrace Progress Log
 
-## Project Accomplishments (26-May-2026)
+## (26-May-2026)
 
 - **Scaffolding**: Initialized WXT project template with React and Tailwind CSS.
 - **Dependencies**: Installed `@huggingface/transformers`, `idb`, and testing packages.
@@ -28,7 +28,7 @@
 
 Building in Public Twitter/X Thread: https://x.com/VVNG0cWBPP4oLu3
 
-## Week 2 Accomplishments (27-May-2026)
+## (27-May-2026)
 
 - **Calm Japanese Sakura Theme**: Implemented a smooth CSS-based theme switcher supporting Dark and Sakura Light modes.
 - **Export Controls**: Created schema exporter actions supporting formatted JSON and escaped CSV downloads.
@@ -36,4 +36,19 @@ Building in Public Twitter/X Thread: https://x.com/VVNG0cWBPP4oLu3
 - **Change Detection ML Flow**: Wired background, content script, and popup hooks to load stored embeddings, request page element enumeration, chunk generate embeddings, rank similarity, and return best recovery candidates.
 - **Change Detection UI Component**: Implemented popup candidate selector with confidence badges, percentage similarity scores, content text previews, and green pulsing target highlights on the page.
 - **Manual Test Plan**: Outlined Hacker News, Amazon, and Wikipedia manual validation steps and edge-cases.
+- **ML Pipeline Tuning**:
+  - Increased embedding candidate search chunk size from 10 to 25 to reduce async rounds and accelerate candidate matching.
+  - Removed longest-text sorting from candidate extraction, allowing shorter, distinctive elements to rank correctly.
+  - Added caching of page element embeddings to prevent redundant runs and speed up recovery.
+- **UX & Clipboard Enhancements**:
+  - Added hover-triggered clipboard copy buttons for extraction values.
+  - Replaced aggressive toast animations with smooth, premium slide-up animations.
+- **Drag-and-Drop Reordering**: Built drag-and-drop field reordering inside the schema manager list.
+- **Dynamic "NEW" Badges**: Added persistent, theme-aware `"NEW"` tag pills displaying for 15 seconds on newly created fields (retaining their visibility across popup closures).
+- **Element Picker Upgrades**:
+  - Added 40-character content previews inside the picker hover tooltip.
+  - Disabled "Add Field" and "Extract" actions during selection to avoid duplicate picker sessions.
+  - Added a picker cancellation listener to safely reset states when escaping.
+- **Theme-Aware Database Reset**: Preserved custom theme states during database resets and transitioned the popup smoothly without hard page reloads.
+- **Tailwind Color Extension**: Extended config to support custom gray palettes (250, 550, 650, 750, 850) inside the stylesheet.
 

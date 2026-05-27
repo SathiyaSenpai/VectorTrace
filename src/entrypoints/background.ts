@@ -105,6 +105,13 @@ async function handleMessage(
 
 			// Save back using our chrome-storage wrapper (which automatically strips embeddings for storage limits)
 			await saveSchema(schema);
+
+			// Save last added field metadata so the popup can show the badge even after reopen
+			await chrome.storage.local.set({
+				lastAddedFieldId: completeField.fieldId,
+				lastAddedFieldTime: Date.now(),
+			});
+
 			console.log(`[background] FIELD_SELECTED saved in ${Date.now() - start}ms`);
 			sendResponse({ success: true });
 		} else if (message.type === "FIND_CANDIDATES") {
