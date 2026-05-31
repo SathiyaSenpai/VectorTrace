@@ -35,7 +35,7 @@ export function matchUrl(
 
 		try {
 			const regex = new RegExp(`^${escaped}$`);
-			if (regex.test(currentUrl) || regex.test(normCurrent) || regex.test(normalizeUrl(pattern))) {
+			if (regex.test(currentUrl) || regex.test(normCurrent)) {
 				return true;
 			}
 		} catch (_e) {

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import type { FieldDefinition } from "../../shared/types";
+import type { ExtractionStatus, FieldDefinition } from "../../shared/types";
 
-interface FieldCardProps {
+type FieldCardProps = {
 	field: Omit<FieldDefinition, "embedding">;
-	status?: "OK" | "SELECTOR_BROKEN" | "HEALED";
+	status?: ExtractionStatus;
 	value?: string;
 	theme?: "dark" | "sakura";
 	onUpdateLabel: (fieldId: string, label: string) => void;
 	onDelete: (fieldId: string) => void;
 	isJustAdded?: boolean;
-}
+};
 
 export function FieldCard({
 	field,
@@ -131,7 +131,15 @@ export function FieldCard({
 					{/* Status Dot */}
 					<span
 						className={`w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 ${
-							status === "SELECTOR_BROKEN" ? "bg-red-500 animate-pulse" : "bg-green-500"
+							status === "SELECTOR_BROKEN" || status === "TAG_CHANGED"
+								? "bg-red-500 animate-pulse"
+								: status === "TEXT_CONTENT_CHANGED"
+									? "bg-orange-500 animate-pulse"
+									: status === "HEALED"
+										? "bg-yellow-500"
+										: status === "ELEMENT_HIDDEN" || status === "EMPTY_PAGE"
+											? "bg-gray-400"
+											: "bg-green-500"
 						}`}
 						title={`Selector Status: ${status}`}
 					/>

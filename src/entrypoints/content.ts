@@ -2,7 +2,8 @@ import { ElementPicker } from "../content/element-picker";
 import { generateCSSSelector, generateXPath } from "../content/selector-generator";
 import { enumeratePageElements, extractFields } from "../content/text-extractor";
 import { getSchema } from "../shared/chrome-storage";
-import type { MessageType } from "../shared/types";
+import { consumePendingHeals } from "../shared/heal-tracker";
+import type { ExtractionResult, MessageType } from "../shared/types";
 
 declare global {
 	interface Window {
@@ -13,7 +14,7 @@ declare global {
 export default defineContentScript({
 	matches: ["<all_urls>"],
 	main() {
-		console.log("VectorTrace content loaded");
+		console.log("[content] content script loaded");
 
 		const picker = new ElementPicker({
 			onSelect: (element) => {
@@ -21,9 +22,9 @@ export default defineContentScript({
 				const cssSelector = generateCSSSelector(element) || "";
 				const xpathSelector = generateXPath(element) || "";
 
-				console.log("Selected element textContent:", text);
-				console.log("Generated CSS selector:", cssSelector);
-				console.log("Generated XPath:", xpathSelector);
+				console.log("[content] Selected element textContent:", text);
+				console.log("[content] Generated CSS selector:", cssSelector);
+				console.log("[content] Generated XPath:", xpathSelector);
 
 				chrome.runtime.sendMessage(
 					{
@@ -36,13 +37,14 @@ export default defineContentScript({
 							cssSelector,
 							xpathSelector,
 							textContent: text,
+							tagName: element.tagName.toLowerCase(),
 							timestamp: Date.now(),
 						},
 					} as MessageType,
 					(response) => {
-						console.log("FIELD_SELECTED response received:", response);
+						console.log("[content] FIELD_SELECTED response received:", response);
 						if (chrome.runtime.lastError) {
-							console.error("FIELD_SELECTED runtime error:", chrome.runtime.lastError);
+							console.error("[content] FIELD_SELECTED runtime error:", chrome.runtime.lastError);
 						}
 					},
 				);
@@ -67,11 +69,9 @@ export default defineContentScript({
 				handleRunExtraction(message.schemaId, sendResponse);
 				return true;
 			} else if (message.type === "ENUMERATE_PAGE") {
-				console.log(`[VectorTrace] Received page enumeration request: "${message.type}"`);
+				console.log(`[content] Received page enumeration request: "${message.type}"`);
 				const candidates = enumeratePageElements();
-				console.log(
-					`[VectorTrace] Enumerated ${candidates.length} candidate elements on the page.`,
-				);
+				console.log(`[content] Enumerated ${candidates.length} candidate elements on the page.`);
 				chrome.runtime.sendMessage({
 					type: "CANDIDATES_FOUND",
 					candidates,
@@ -91,34 +91,63 @@ export default defineContentScript({
 			sendResponse: (response?: unknown) => void,
 		) {
 			try {
-				console.log(`[VectorTrace] RUN_EXTRACTION requested for schemaId: ${schemaId}`);
+				console.log(`[content] RUN_EXTRACTION requested for schemaId: ${schemaId}`);
 				const schema = await getSchema(schemaId);
 				if (!schema) {
 					throw new Error(`Schema with ID ${schemaId} not found`);
 				}
 				console.log(
-					`[VectorTrace] Found schema: "${schema.name}" with ${schema.fields.length} fields. Running extraction...`,
+					`[content] Found schema: "${schema.name}" with ${schema.fields.length} fields. Running extraction...`,
 				);
-				const results = await extractFields(schema.fields);
-				const extractionResult = {
+				// Pass full field data including textContent and tagName for identity verification
+				const fieldInputs = schema.fields.map((f) => ({
+					fieldId: f.fieldId,
+					label: f.label,
+					cssSelector: f.cssSelector,
+					xpathSelector: f.xpathSelector,
+					textContent: f.textContent,
+					tagName: f.tagName || "",
+				}));
+				const results = await extractFields(fieldInputs);
+
+				// If any of these fields were just healed, flag the successful ones as HEALED
+				// (instead of plain OK) so the popup can show the "from -> to" heal badge.
+				const pendingHeals = await consumePendingHeals(results.map((r) => r.fieldId));
+
+				const extractionResult: ExtractionResult = {
 					schemaId,
 					url: window.location.href,
 					timestamp: Date.now(),
-					fields: results.map((r) => ({
-						fieldId: r.fieldId,
-						label: r.label,
-						value: r.value,
-						status: r.status,
-					})),
+					fields: results.map((r) => {
+						const heal = pendingHeals[r.fieldId];
+						// Only promote to HEALED when the healed selector actually resolved this run.
+						if (heal && r.status === "OK") {
+							return {
+								fieldId: r.fieldId,
+								label: r.label,
+								value: r.value,
+								status: "HEALED" as const,
+								healedFrom: heal.healedFrom,
+								healedTo: heal.healedTo,
+							};
+						}
+						return {
+							fieldId: r.fieldId,
+							label: r.label,
+							value: r.value,
+							status: r.status,
+							storedText: r.storedText,
+						};
+					}),
 				};
-				console.log("[VectorTrace] EXTRACTION_COMPLETE result:", extractionResult);
+				console.log("[content] EXTRACTION_COMPLETE result:", extractionResult);
 				chrome.runtime.sendMessage({
 					type: "EXTRACTION_COMPLETE",
 					result: extractionResult,
 				} as MessageType);
 				sendResponse({ success: true, result: extractionResult });
 			} catch (err) {
-				console.error("[VectorTrace] Extraction failed:", err);
+				console.error("[content] Extraction failed:", err);
 				sendResponse({ error: (err as Error).message });
 			}
 		}
@@ -130,7 +159,7 @@ export default defineContentScript({
 			try {
 				el = document.querySelector(selector);
 			} catch (err) {
-				console.error("[VectorTrace] Invalid selector for highlighting:", selector, err);
+				console.error("[content] Invalid selector for highlighting:", selector, err);
 			}
 			if (!el) return;
 

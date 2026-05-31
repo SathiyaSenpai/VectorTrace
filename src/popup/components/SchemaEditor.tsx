@@ -3,7 +3,7 @@ import type { ExtractionResult, FieldDefinition, Schema } from "../../shared/typ
 import { sendMessageWithRetry } from "../utils/messaging";
 import { FieldCard } from "./FieldCard";
 
-interface SchemaEditorProps {
+type SchemaEditorProps = {
 	schema: Schema | null;
 	url: string;
 	createSchema: (name: string) => Promise<void>;
@@ -20,7 +20,7 @@ interface SchemaEditorProps {
 	onShowResults: () => void;
 	theme?: "dark" | "sakura";
 	onExtract?: () => Promise<void>;
-}
+};
 
 export function SchemaEditor({
 	schema,

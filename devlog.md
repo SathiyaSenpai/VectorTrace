@@ -58,3 +58,34 @@ Building in Public Twitter/X Thread: https://x.com/VVNG0cWBPP4oLu3
 - **Theme-Aware Database Reset**: Preserved custom theme states during database resets and transitioned the popup smoothly without hard page reloads.
 - **Tailwind Color Extension**: Extended config to support custom gray palettes (250, 550, 650, 750, 850) inside the stylesheet.
 
+## (29-May-2026)
+
+Hardening pass to take the codebase from broken-and-incomplete to complete-and-production-ready.
+
+- **TypeScript Zero-Error**: Fixed all 16 pre-existing `tsc` errors:
+  - `plugins/vite-plugin-onnx-bundle.ts`: replaced the unresolvable `import type { Plugin } from "vite"` (vite is only a transitive WXT dependency, not a direct one) with minimal structural types; typed the `configResolved` parameter.
+  - `background/embedding-pipeline.ts`: typed the service-worker `self.clients` access via a `ServiceWorkerLike` shape and removed the `@ts-expect-error` hacks around `chrome.runtime.getContexts`.
+  - `content/selector-generator.ts`: widened public signatures from `HTMLElement` to `Element` so SVG nodes (e.g. `clipPath`) type-check (fixes the SVG test).
+  - `entrypoints/offscreen/index.ts`: stopped reassigning the read-only `env.backends.onnx.wasm` object (mutate fields in place), and typed the pipeline to the `"feature-extraction"` literal to satisfy `PipelineType`.
+  - `entrypoints/options/App.tsx` & `popup/hooks/useSchema.ts`: narrowed `chrome.storage.local.get` results with `typeof` guards instead of unsafe truthy checks.
+  - `shared/chrome-storage.test.ts`: added the missing required `url` field to the mock `FieldDefinition`.
+- **Feature 1 — Distinct Failure States (Reddit request)**: Verified and tightened the end-to-end wiring of all six statuses (`OK`, `HEALED`, `SELECTOR_BROKEN`, `TEXT_CONTENT_CHANGED`, `ELEMENT_HIDDEN`, `EMPTY_PAGE`). A resolved-but-now-empty element is now reported as `TEXT_CONTENT_CHANGED` instead of a silent empty `OK`. Added a **Field Health Summary** banner to the Results tab with an overall diagnosis and per-status count pills, and per-status diagnosis tooltips.
+- **Feature 2 — HEALED Status Wiring**: Added `shared/heal-tracker.ts` to persist a short-lived "pending heal" (`healedFrom → healedTo`, keyed by `fieldId`) in `chrome.storage.local`. Accepting a candidate now records the old selector before overwriting it; `content.ts` consumes pending heals during the next extraction and stamps successful fields as `HEALED` with `healedFrom`/`healedTo`. The badge consumes once, so it only shows for the run immediately after healing.
+- **Offscreen Self-Warming**: Rewrote `offscreen/index.ts` to cache a single feature-extraction pipeline, expose a `getEmbeddingPipeline()` warm-up, and added a self-initializing warm-up IIFE at the bottom so the model re-warms automatically whenever Chrome recreates the offscreen document. Warm-up failures are non-fatal and retried lazily.
+- **Reliability Hardening**:
+  - Robust offscreen lifecycle: modern `chrome.runtime.getContexts` with a `clients` fallback, race-safe creation that treats "single offscreen document" errors as success, and transparent recreation after teardown.
+  - Added a 60s watchdog timeout to `generateEmbedding` so an unresponsive offscreen document never hangs the caller.
+  - Added `catch` handlers to clipboard writes and normalized all content/background `console.log` calls to `[content]` / `[background]` prefixes.
+- **Auto-Heal (wired existing Options UI)**: Implemented `shared/settings.ts` (`getHealingSettings`) and `popup/hooks/useAutoHeal.ts`. Enabled and persisted the previously-disabled "Heal without prompting" toggle and confidence-threshold slider (split into a working "Self-Healing" section, with Gemini kept as a clearly-labeled preview). After extraction, broken/drifted fields are auto-repaired when the top candidate clears the threshold, followed by a re-extraction to surface `HEALED` badges.
+- **Results Conveniences**: Added a **Re-run** button to the Results header and upgraded **Copy JSON** to emit a structured snapshot (schema, URL, timestamp, and each field's label/value/status).
+- **Convention Cleanup**: Converted all React component prop definitions from `interface` to `type` per project convention.
+- **Tests**: Added unit tests for the new `TEXT_CONTENT_CHANGED` (drift + empty) and `EMPTY_PAGE` paths, plus full coverage for `heal-tracker` and `settings`. Suite grew from 28 → 37 passing tests.
+- **Verification**: `pnpm test` (37 passing), `pnpm lint` (clean), `tsc --noEmit` (0 errors), and `pnpm build` (succeeds) all green. No new runtime dependencies were introduced.
+
+## (31-May-2026)
+
+- **Drift Detection Architecture Fix**: Implemented a robust 3-phase detection algorithm (selector resolution -> identity verification -> page search fallback) to completely eliminate cascading false positives caused by `nth-of-type` index shifts when sibling elements are added or removed.
+- **Structural Drift Detection**: Added `tagName` tracking to `FieldDefinition` captured at selection time, and introduced a new `TAG_CHANGED` extraction status to explicitly differentiate structural DOM changes (e.g., `<h1>` changing to `<p>`) from mere text content drift.
+- **Strict Text Matching**: Replaced the overly lenient Jaccard similarity in `isTextMatch` with a strict exact normalized match and substring containment check. The new page search fallback safely handles cases where selectors break or drift.
+- **UI Updates**: Wired the new `TAG_CHANGED` status into the `FieldCard` component, treating it with the same red pulsing visual indicator as `SELECTOR_BROKEN`.
+- **Comprehensive Test Suite**: Rewrote `text-extractor.test.ts` growing from 17 to 20 tests that simulate real-world `example.com` DOM mutations, ensuring tag swaps, number additions, and nth-of-type shifts are resolved correctly. All 47 tests across the project are green.

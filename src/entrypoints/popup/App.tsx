@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChangeDetection } from "../../popup/components/ChangeDetection";
 import { ExtractionResults } from "../../popup/components/ExtractionResults";
 import { SchemaEditor } from "../../popup/components/SchemaEditor";
+import { useAutoHeal } from "../../popup/hooks/useAutoHeal";
 import { useExtraction } from "../../popup/hooks/useExtraction";
 import { useSchema } from "../../popup/hooks/useSchema";
 import { getDB } from "../../shared/idb-store";
@@ -28,6 +29,7 @@ export default function App() {
 	} = useSchema();
 
 	const { extractionResult, setExtractionResult, isExtracting, runExtraction } = useExtraction();
+	const { attemptAutoHeal } = useAutoHeal(schema?.schemaId);
 
 	const [activeTab, setActiveTab] = useState<"SCHEMA" | "RESULTS" | "SETTINGS" | "HEALING">(
 		"SCHEMA",
@@ -108,8 +110,28 @@ export default function App() {
 		// Auto-switch to Results tab when extraction runs
 		setActiveTab("RESULTS");
 		try {
-			await runExtraction(schema.schemaId);
+			const result = await runExtraction(schema.schemaId);
 			showToast("Extraction complete", "success");
+
+			// Optional auto-heal pass: silently repair broken/drifted fields when the
+			// user has enabled it in Settings and a candidate clears the threshold.
+			if (result) {
+				try {
+					const healSummary = await attemptAutoHeal(result);
+					if (healSummary.healed) {
+						await reloadSchema();
+						await runExtraction(schema.schemaId);
+						showToast(
+							`Auto-healed ${healSummary.healedCount} field${
+								healSummary.healedCount === 1 ? "" : "s"
+							}`,
+							"success",
+						);
+					}
+				} catch (healErr) {
+					console.error("Auto-heal pass failed:", healErr);
+				}
+			}
 		} catch (err) {
 			console.error("Extraction failed:", err);
 			showToast("Extraction failed", "error");
@@ -215,8 +237,8 @@ export default function App() {
 				</span>
 			</div>
 
-			{/* Schema Picker Dropdown if multiple schemas exist */}
-			{!isRestricted && !loading && matchingSchemas.length > 1 && (
+			{/* Schema Picker Dropdown if any schema exists */}
+			{!isRestricted && !loading && matchingSchemas.length > 0 && (
 				<div
 					className={`px-4 py-1.5 border-b flex items-center justify-between transition-colors duration-300 ${
 						isSakura
@@ -227,7 +249,7 @@ export default function App() {
 					<span className="text-[9px] font-extrabold tracking-wider uppercase">Scraper Scope:</span>
 					<div className="relative flex items-center">
 						<select
-							value={schema?.schemaId || ""}
+							value={schema?.schemaId || "NEW_SCHEMA"}
 							onChange={(e) => selectSchema(e.target.value)}
 							className={`text-[10px] font-bold py-0.5 pl-2 pr-6 rounded border appearance-none outline-none cursor-pointer transition-all duration-300 ${
 								isSakura
@@ -240,6 +262,9 @@ export default function App() {
 									{s.name} ({s.fields.length} {s.fields.length === 1 ? "field" : "fields"})
 								</option>
 							))}
+							<option value="NEW_SCHEMA" className="italic text-green-600 font-bold">
+								+ Create New Schema
+							</option>
 						</select>
 						<span className="pointer-events-none absolute right-2 text-[8px] opacity-70">▼</span>
 					</div>
@@ -384,6 +409,7 @@ export default function App() {
 									result={extractionResult}
 									onBack={() => setActiveTab("SCHEMA")}
 									onFindReplacement={handleFindReplacement}
+									onReExtract={handleRunExtraction}
 									theme={theme}
 								/>
 							) : (

@@ -67,6 +67,7 @@ describe("chrome-storage wrapper", () => {
 				fieldId: "field-1",
 				schemaId: "test-schema-id",
 				label: "Title",
+				url: "https://example.com",
 				cssSelector: "h1",
 				xpathSelector: "//h1",
 				textContent: "Hello",

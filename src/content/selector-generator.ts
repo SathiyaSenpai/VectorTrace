@@ -2,7 +2,7 @@
  * Checks if an element is inside a cross-origin iframe.
  * If accessing parent document properties throws an exception, it is cross-origin.
  */
-function isCrossOriginIframe(element: HTMLElement): boolean {
+function isCrossOriginIframe(element: Element): boolean {
 	try {
 		const win = element.ownerDocument?.defaultView;
 		if (win && win.parent !== win) {
@@ -28,7 +28,7 @@ function getTagName(element: Element): string {
 /**
  * Helper to generate a full CSS selector path starting from HTML.
  */
-function generateFullPathSelector(element: HTMLElement): string {
+function generateFullPathSelector(element: Element): string {
 	const path: string[] = [];
 	let current: Element | null = element;
 	const doc = element.ownerDocument;
@@ -72,7 +72,7 @@ function generateFullPathSelector(element: HTMLElement): string {
  * Truncates a CSS selector path to remain under 500 characters,
  * while verifying that the shortened selector remains unique to the target element.
  */
-function truncateCSSSelector(selector: string, target: HTMLElement): string {
+function truncateCSSSelector(selector: string, target: Element): string {
 	if (selector.length <= 500) {
 		return selector;
 	}
@@ -112,7 +112,7 @@ function evaluateXPath(xpath: string, doc: Document): Node | null {
  * Truncates an XPath expression to remain under 500 characters,
  * trying to make it relative (starting with //) and verifying uniqueness.
  */
-function truncateXPath(xpath: string, target: HTMLElement): string {
+function truncateXPath(xpath: string, target: Element): string {
 	if (xpath.length <= 500) {
 		return xpath;
 	}
@@ -145,7 +145,7 @@ function escapeCSSIdentifier(val: string): string {
 /**
  * Generates a unique CSS Selector for the given element.
  */
-export function generateCSSSelector(element: HTMLElement): string | null {
+export function generateCSSSelector(element: Element): string | null {
 	if (isCrossOriginIframe(element)) {
 		return null;
 	}
@@ -251,7 +251,7 @@ export function generateCSSSelector(element: HTMLElement): string | null {
 /**
  * Generates a unique XPath expression for the given element.
  */
-export function generateXPath(element: HTMLElement): string | null {
+export function generateXPath(element: Element): string | null {
 	if (isCrossOriginIframe(element)) {
 		return null;
 	}
