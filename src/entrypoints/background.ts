@@ -1,5 +1,5 @@
 import { generateEmbedding } from "../background/embedding-pipeline";
-import { rankCandidates } from "../background/similarity";
+import { cosineSimilarity, rankCandidates } from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
 import { getFieldEmbedding, saveFieldEmbedding } from "../shared/idb-store";
 import { sendMessageWithRetry } from "../shared/messaging";
@@ -8,7 +8,7 @@ import type { MessageType } from "../shared/types";
 export default defineBackground({
 	type: "module",
 	main() {
-		console.log("VectorTrace background loaded");
+		console.log("[background] service worker loaded");
 
 		chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
 			// Keep the message channel open by returning true, delegating task execution to an async function.
@@ -134,7 +134,7 @@ async function handleMessage(
 			const response = (await sendMessageWithRetry(tab.id, {
 				type: "ENUMERATE_PAGE",
 			})) as
-				| { candidates?: { text: string; cssSelector: string; xpathSelector: string }[] }
+				| { candidates?: { text: string; cssSelector: string; xpathSelector: string; tagName: string }[] }
 				| undefined;
 
 			const candidates = response?.candidates;
@@ -174,9 +174,15 @@ async function handleMessage(
 					}),
 				);
 
+				let earlyMatch = false;
+
 				for (const res of results) {
 					if (res) {
 						candidatesWithEmbeddings.push(res);
+						const score = cosineSimilarity(field.embedding, res.embedding);
+						if (score >= 0.95) {
+							earlyMatch = true;
+						}
 					}
 				}
 
@@ -190,6 +196,13 @@ async function handleMessage(
 					.catch(() => {
 						// Ignore errors if popup closed
 					});
+
+				if (earlyMatch) {
+					console.log(
+						`[background] Found highly confident candidate (score >= 0.95). Terminating search early.`,
+					);
+					break;
+				}
 			}
 
 			// 4. Rank candidates by similarity

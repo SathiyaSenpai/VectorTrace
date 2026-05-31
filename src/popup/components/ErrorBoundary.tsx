@@ -1,14 +1,14 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
-interface Props {
+type Props = {
 	children?: ReactNode;
 	theme?: "dark" | "sakura";
-}
+};
 
-interface State {
+type State = {
 	hasError: boolean;
 	error: Error | null;
-}
+};
 
 export class ErrorBoundary extends Component<Props, State> {
 	public state: State = {

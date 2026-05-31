@@ -3,13 +3,13 @@ import type { FieldDefinition, SimilarityCandidate } from "../../shared/types";
 import { useChangeDetection } from "../hooks/useChangeDetection";
 import { sendMessageWithRetry } from "../utils/messaging";
 
-interface ChangeDetectionProps {
+type ChangeDetectionProps = {
 	schemaId: string;
 	field: FieldDefinition;
 	onAccept: () => void;
 	onCancel: () => void;
 	theme?: "dark" | "sakura";
-}
+};
 
 export function ChangeDetection({
 	schemaId,

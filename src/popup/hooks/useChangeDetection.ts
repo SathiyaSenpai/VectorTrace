@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { updateSchemaField } from "../../shared/chrome-storage";
+import { getSchema, updateSchemaField } from "../../shared/chrome-storage";
+import { recordPendingHeal } from "../../shared/heal-tracker";
 import type { MessageType, SimilarityCandidate } from "../../shared/types";
 
 export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated?: () => void) {
@@ -57,6 +58,20 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 			try {
 				console.log(`[useChangeDetection] Accepting candidate for field ${fieldId}:`, candidate);
 
+				// 0. Capture the field's current (broken) selector before we overwrite it,
+				//    so the upcoming re-extraction can report a precise from -> to heal.
+				let previousSelector = "";
+				try {
+					const schema = await getSchema(schemaId);
+					const existingField = schema?.fields.find((f) => f.fieldId === fieldId);
+					previousSelector = existingField?.cssSelector || "";
+				} catch (lookupErr) {
+					console.warn(
+						"[useChangeDetection] Could not read previous selector for heal record:",
+						lookupErr,
+					);
+				}
+
 				// 1. Generate embedding for the new text content in background
 				const response = await chrome.runtime.sendMessage({
 					type: "GENERATE_EMBEDDING",
@@ -75,6 +90,9 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 					textContent: candidate.textContent,
 					embedding,
 				});
+
+				// 3. Record the heal so the next extraction flags this field as HEALED.
+				await recordPendingHeal(fieldId, previousSelector, candidate.cssSelector);
 
 				console.log("[useChangeDetection] Candidate successfully accepted and storage updated.");
 

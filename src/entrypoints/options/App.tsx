@@ -66,9 +66,11 @@ export default function App() {
 
 			// Get Gemini Settings
 			const data = await chrome.storage.local.get(["geminiKey", "autoHeal", "confidenceThreshold"]);
-			if (data.geminiKey) setGeminiKey(data.geminiKey);
-			if (data.autoHeal !== undefined) setAutoHeal(data.autoHeal);
-			if (data.confidenceThreshold !== undefined) setConfidenceThreshold(data.confidenceThreshold);
+			if (typeof data.geminiKey === "string") setGeminiKey(data.geminiKey);
+			if (typeof data.autoHeal === "boolean") setAutoHeal(data.autoHeal);
+			if (typeof data.confidenceThreshold === "number") {
+				setConfidenceThreshold(data.confidenceThreshold);
+			}
 		} catch (err) {
 			console.error("Failed to load settings data:", err);
 		} finally {
@@ -99,6 +101,28 @@ export default function App() {
 	const handleSaveGeminiKey = async (val: string) => {
 		setGeminiKey(val);
 		await chrome.storage.local.set({ geminiKey: val });
+	};
+
+	// Persist the auto-heal toggle. When enabled, the popup automatically applies the
+	// top healing candidate after extraction if its confidence clears the threshold.
+	const handleToggleAutoHeal = async (val: boolean) => {
+		setAutoHeal(val);
+		try {
+			await chrome.storage.local.set({ autoHeal: val });
+			showToast(`Auto-heal ${val ? "enabled" : "disabled"}`, "info");
+		} catch {
+			showToast("Failed to save auto-heal setting", "error");
+		}
+	};
+
+	// Persist the confidence threshold used by auto-heal (0.3 - 0.95).
+	const handleConfidenceChange = async (val: number) => {
+		setConfidenceThreshold(val);
+		try {
+			await chrome.storage.local.set({ confidenceThreshold: val });
+		} catch {
+			showToast("Failed to save confidence threshold", "error");
+		}
 	};
 
 	// Reset All Data Action
@@ -444,11 +468,74 @@ export default function App() {
 					</div>
 				</div>
 
-				{/* Section 3: AI Settings Shell */}
+				{/* Section 3: Self-Healing Settings (active) */}
 				<div className="bg-gray-800 rounded-xl border border-gray-700 p-6 flex flex-col gap-4 shadow-xl shadow-black/10">
 					<div className="flex items-center justify-between border-b border-gray-700 pb-3">
 						<h2 className="text-sm font-bold text-white uppercase tracking-wider">
-							🤖 AI Settings
+							🩹 Self-Healing
+						</h2>
+						<span className="text-[9px] font-mono uppercase bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50">
+							Active
+						</span>
+					</div>
+
+					<div className="grid grid-cols-2 gap-4">
+						{/* Auto-Heal toggle (functional) */}
+						<div className="flex flex-col gap-1">
+							<span className="text-xs font-bold text-gray-300">Auto-Heal Selectors</span>
+							<p className="text-[10px] text-gray-500 leading-relaxed">
+								After extraction, automatically apply the best replacement for broken or drifted
+								fields when its confidence clears the threshold.
+							</p>
+							<div className="flex items-center gap-2 mt-2">
+								<input
+									id="autoHealCheckbox"
+									type="checkbox"
+									checked={autoHeal}
+									onChange={(e) => handleToggleAutoHeal(e.target.checked)}
+									className="rounded border-gray-700 bg-gray-900 focus:ring-0 text-blue-600 cursor-pointer"
+								/>
+								<label
+									htmlFor="autoHealCheckbox"
+									className="text-[11px] text-gray-300 select-none cursor-pointer"
+								>
+									Heal without prompting
+								</label>
+							</div>
+						</div>
+
+						{/* Confidence threshold (functional) */}
+						<div className="flex flex-col gap-1.5">
+							<div className="flex justify-between text-xs text-gray-300">
+								<label htmlFor="confidenceSlider" className="font-bold">
+									Confidence Threshold
+								</label>
+								<span className="font-mono text-blue-400">
+									{Math.round(confidenceThreshold * 100)}%
+								</span>
+							</div>
+							<p className="text-[10px] text-gray-500 leading-relaxed">
+								Minimum cosine-similarity confidence required before a candidate is auto-applied.
+							</p>
+							<input
+								id="confidenceSlider"
+								type="range"
+								min="0.3"
+								max="0.95"
+								step="0.05"
+								value={confidenceThreshold}
+								onChange={(e) => handleConfidenceChange(Number(e.target.value))}
+								className="w-full accent-blue-500 mt-1 cursor-pointer"
+							/>
+						</div>
+					</div>
+				</div>
+
+				{/* Section 4: AI Settings Shell (preview) */}
+				<div className="bg-gray-800 rounded-xl border border-gray-700 p-6 flex flex-col gap-4 shadow-xl shadow-black/10">
+					<div className="flex items-center justify-between border-b border-gray-700 pb-3">
+						<h2 className="text-sm font-bold text-white uppercase tracking-wider">
+							🤖 Cloud AI (Optional)
 						</h2>
 						<span className="text-[9px] font-mono uppercase bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded border border-blue-900/50">
 							v0.2.0 Preview
@@ -470,6 +557,10 @@ export default function App() {
 									{showGeminiKey ? "Hide key" : "Show key"}
 								</button>
 							</div>
+							<p className="text-[10px] text-gray-500 leading-relaxed">
+								Optional. Stored locally only. Reserved for an upcoming cloud-assisted healing mode;
+								the core extension remains 100% local without it.
+							</p>
 							<div className="flex gap-2">
 								<input
 									id="geminiKey"
@@ -487,47 +578,6 @@ export default function App() {
 								>
 									Test Key
 								</button>
-							</div>
-						</div>
-
-						{/* Configuration fields */}
-						<div className="grid grid-cols-2 gap-4">
-							<div className="flex flex-col gap-1">
-								<span className="text-xs font-bold text-gray-400">Auto-Heal Selector</span>
-								<div className="flex items-center gap-2 mt-1 opacity-50 cursor-not-allowed">
-									<input
-										id="autoHealCheckbox"
-										type="checkbox"
-										checked={autoHeal}
-										disabled
-										className="rounded border-gray-750 bg-gray-900 focus:ring-0 text-blue-600"
-									/>
-									<label
-										htmlFor="autoHealCheckbox"
-										className="text-[11px] text-gray-550 select-none"
-									>
-										Heal without prompt
-									</label>
-								</div>
-							</div>
-
-							<div className="flex flex-col gap-1.5">
-								<div className="flex justify-between text-xs text-gray-400">
-									<label htmlFor="confidenceSlider" className="font-bold">
-										Confidence Threshold
-									</label>
-									<span className="font-mono">{Math.round(confidenceThreshold * 100)}%</span>
-								</div>
-								<input
-									id="confidenceSlider"
-									type="range"
-									min="0.3"
-									max="0.95"
-									step="0.05"
-									value={confidenceThreshold}
-									disabled
-									className="w-full opacity-50 cursor-not-allowed accent-blue-500 mt-1"
-								/>
 							</div>
 						</div>
 					</div>

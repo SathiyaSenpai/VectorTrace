@@ -99,11 +99,13 @@ export function useSchema() {
 		let isMounted = true;
 		chrome.storage.local.get(["lastAddedFieldId", "lastAddedFieldTime"], (data) => {
 			if (!isMounted) return;
-			if (data.lastAddedFieldId && data.lastAddedFieldTime) {
-				const elapsed = Date.now() - data.lastAddedFieldTime;
+			const lastId = data.lastAddedFieldId as string | undefined;
+			const lastTime = data.lastAddedFieldTime as number | undefined;
+			if (lastId && typeof lastTime === "number") {
+				const elapsed = Date.now() - lastTime;
 				const duration = 15000; // Keep badge visible for 15 seconds
 				if (elapsed < duration) {
-					setLastAddedFieldId(data.lastAddedFieldId);
+					setLastAddedFieldId(lastId);
 					const remaining = duration - elapsed;
 					const timer = setTimeout(() => {
 						if (isMounted) {
@@ -112,9 +114,8 @@ export function useSchema() {
 						}
 					}, remaining);
 					return () => clearTimeout(timer);
-				} else {
-					chrome.storage.local.remove(["lastAddedFieldId", "lastAddedFieldTime"]);
 				}
+				chrome.storage.local.remove(["lastAddedFieldId", "lastAddedFieldTime"]);
 			}
 		});
 		return () => {
@@ -227,7 +228,11 @@ export function useSchema() {
 
 	const selectSchema = useCallback(
 		async (schemaId: string) => {
-			await loadSchema(url, schemaId);
+			if (schemaId === "NEW_SCHEMA") {
+				setSchema(null);
+			} else {
+				await loadSchema(url, schemaId);
+			}
 		},
 		[url, loadSchema],
 	);

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import type { ExtractionResult } from "../../shared/types";
 
-interface ExportControlsProps {
+type ExportControlsProps = {
 	schemaName: string;
 	result: ExtractionResult;
 	theme?: "dark" | "sakura";
-}
+};
 
 export function ExportControls({ schemaName, result, theme = "dark" }: ExportControlsProps) {
 	const isSakura = theme === "sakura";
@@ -51,10 +51,27 @@ export function ExportControls({ schemaName, result, theme = "dark" }: ExportCon
 	};
 
 	const handleCopyJson = () => {
-		const simple = Object.fromEntries(result.fields.map((f) => [f.label || f.fieldId, f.value]));
-		navigator.clipboard.writeText(JSON.stringify(simple, null, 2));
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+		// Copy a structured snapshot that preserves each field's value AND status, so the
+		// clipboard payload is self-describing (e.g. for pasting into an issue or sheet).
+		const payload = {
+			schema: schemaName,
+			extractedAt: new Date(result.timestamp).toISOString(),
+			url: result.url,
+			fields: result.fields.map((f) => ({
+				label: f.label || f.fieldId,
+				value: f.value,
+				status: f.status,
+			})),
+		};
+		navigator.clipboard
+			.writeText(JSON.stringify(payload, null, 2))
+			.then(() => {
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
+			})
+			.catch((err) => {
+				console.error("Failed to copy results to clipboard:", err);
+			});
 	};
 
 	const btnClass = isSakura

@@ -1,17 +1,42 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Plugin } from "vite";
+
+/**
+ * Minimal structural type describing the resolved Vite config we read inside the
+ * plugin. We avoid importing the full `Plugin`/`ResolvedConfig` types from `vite`
+ * because `vite` is only a transitive dependency of WXT (not a direct dependency),
+ * so its type declarations are not resolvable from the project root tsconfig.
+ * This structural shape is enough for the single field we consume.
+ */
+type ResolvedViteConfigLike = {
+	build: {
+		outDir: string;
+	};
+};
+
+/**
+ * Minimal structural type describing the Vite plugin object we return.
+ * WXT's `vite()` config accepts any object matching the Vite plugin contract,
+ * so a structural type keeps us type-safe without the heavyweight `vite` import.
+ */
+type ViteBundlePlugin = {
+	name: string;
+	configResolved(config: ResolvedViteConfigLike): void;
+	closeBundle(): Promise<void>;
+};
 
 /**
  * Vite plugin to copy ONNX WebAssembly files from node_modules/onnxruntime-web/dist/
  * to the build output directory so they are bundled with the extension.
+ *
+ * @returns A Vite-compatible plugin object that copies `.wasm`/`.mjs` runtime files.
  */
-export function onnxBundlePlugin(): Plugin {
+export function onnxBundlePlugin(): ViteBundlePlugin {
 	let outDir = "";
 
 	return {
 		name: "vite-plugin-onnx-bundle",
-		configResolved(config) {
+		configResolved(config: ResolvedViteConfigLike) {
 			outDir = config.build.outDir;
 		},
 		async closeBundle() {
