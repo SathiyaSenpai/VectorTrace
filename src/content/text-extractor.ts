@@ -120,17 +120,19 @@ function normalizeText(s: string): string {
 /**
  * Checks whether two text strings represent the same element content.
  *
- * This is used ONLY to verify that a selector-resolved element is the
+ * This is used to verify that a selector-resolved element is the
  * SAME element we originally captured — it's an identity check, not a
  * content-change detector.
  *
- * INTENTIONALLY STRICT: We only accept exact normalized match, or
- * one string being a substring of the other (handles minor additions/
- * truncation). If this returns false, the extractor falls through to
- * the page search fallback which handles shifted selectors.
+ * Match hierarchy (first to pass wins):
+ *   1. Exact normalized match
+ *   2. One string fully contains the other (handles appending/prepending)
+ *   3. Prefix overlap (first 80% of shorter string) — handles mid/end insertions
+ *      like "permission." → "permission 123."
  *
- * Being too lenient here (e.g. Jaccard similarity) causes false matches
- * between different sentences that share common words.
+ * Being too lenient (e.g. low-threshold Jaccard) causes false matches
+ * between different sentences that share common words. The page search
+ * fallback handles the remaining edge cases.
  */
 function isTextMatch(stored: string, extracted: string): boolean {
 	if (!stored || !extracted) return !stored && !extracted;
@@ -138,12 +140,22 @@ function isTextMatch(stored: string, extracted: string): boolean {
 	const a = normalizeText(stored);
 	const b = normalizeText(extracted);
 
-	// Exact normalized match
+	// 1. Exact normalized match
 	if (a === b) return true;
 
-	// One string fully contains the other.
-	// Handles truncation, minor additions, trailing timestamps, etc.
+	// 2. One string fully contains the other.
 	if (a.includes(b) || b.includes(a)) return true;
+
+	// 3. Prefix overlap: if the first 80% of the shorter string matches,
+	//    the element is very likely the same one with minor edits at the end.
+	//    Only apply for strings longer than 20 chars to avoid false matches
+	//    on short headings.
+	const shorter = a.length <= b.length ? a : b;
+	const longer = a.length <= b.length ? b : a;
+	if (shorter.length > 20) {
+		const prefixLen = Math.floor(shorter.length * 0.8);
+		if (longer.startsWith(shorter.slice(0, prefixLen))) return true;
+	}
 
 	return false;
 }
@@ -154,8 +166,13 @@ function isTextMatch(stored: string, extracted: string): boolean {
 
 /**
  * Searches the live DOM for a visible element that matches the stored identity
- * (same tag name + same text content). This is the fallback when a positional
- * selector (nth-of-type) resolves to the wrong element or doesn't resolve at all.
+ * (same tag name + same/similar text content). This is the fallback when a
+ * positional selector (nth-of-type) resolves to the wrong element or doesn't
+ * resolve at all.
+ *
+ * Two-pass strategy:
+ *   Pass 1 — Exact normalized text match (fast, no ambiguity)
+ *   Pass 2 — isTextMatch fuzzy check (handles minor text changes like added numbers)
  *
  * Returns the matching element, or null if the element truly isn't on the page.
  */
@@ -171,24 +188,29 @@ function findElementOnPage(storedText: string, storedTagName: string): Element |
 		? document.body.getElementsByTagName(tag)
 		: document.body.querySelectorAll("*");
 
+	// Collect visible elements and their text once (avoid redundant DOM reads)
+	const visibleElements: { el: Element; text: string }[] = [];
 	for (let i = 0; i < elements.length; i++) {
 		const el = elements[i];
-
-		// Skip VectorTrace's own overlay elements
 		if (el.hasAttribute("data-vectortrace")) continue;
-
-		// Skip invisible elements
 		try {
 			if (isElementHidden(el)) continue;
 		} catch {
 			continue;
 		}
-
 		const elText = normalizeText(el.textContent?.trim() || "");
 		if (!elText) continue;
+		visibleElements.push({ el, text: elText });
+	}
 
-		// Exact normalized text match
-		if (elText === normalizedStored) return el;
+	// Pass 1: Exact normalized text match (strongest signal, no ambiguity)
+	for (const { el, text } of visibleElements) {
+		if (text === normalizedStored) return el;
+	}
+
+	// Pass 2: Fuzzy match via isTextMatch (handles added numbers, minor edits)
+	for (const { el, text } of visibleElements) {
+		if (isTextMatch(storedText, text)) return el;
 	}
 
 	return null;

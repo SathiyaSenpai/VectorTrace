@@ -18,6 +18,7 @@ const STATUS_DIAGNOSIS: Record<ExtractionStatus, string> = {
 	SELECTOR_BROKEN: "Selector matched nothing — the element is missing from the DOM.",
 	TEXT_CONTENT_CHANGED:
 		"Selector resolved a different element — the text drifted from the stored content.",
+	TAG_CHANGED: "Selector resolved an element with a different tag type — structural drift detected.",
 	ELEMENT_HIDDEN: "Selector resolved a hidden element (display:none / visibility:hidden).",
 	EMPTY_PAGE: "The page appears empty, blocked, or still loading.",
 };
@@ -81,12 +82,14 @@ export function ExtractionResults({
 			HEALED: 0,
 			SELECTOR_BROKEN: 0,
 			TEXT_CONTENT_CHANGED: 0,
+			TAG_CHANGED: 0,
 			ELEMENT_HIDDEN: 0,
 			EMPTY_PAGE: 0,
 		},
 	);
 	const totalFields = result.fields.length;
-	const problemCount = counts.SELECTOR_BROKEN + counts.TEXT_CONTENT_CHANGED + counts.ELEMENT_HIDDEN;
+	const problemCount =
+		counts.SELECTOR_BROKEN + counts.TEXT_CONTENT_CHANGED + counts.TAG_CHANGED + counts.ELEMENT_HIDDEN;
 
 	// One-line overall diagnosis for the summary banner.
 	let summaryHeadline: string;
@@ -267,6 +270,11 @@ export function ExtractionResults({
 								❌ {counts.SELECTOR_BROKEN} Broken
 							</span>
 						)}
+						{counts.TAG_CHANGED > 0 && (
+							<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/15 border border-red-500/20 text-red-500">
+								🔀 {counts.TAG_CHANGED} Tag Changed
+							</span>
+						)}
 						{counts.ELEMENT_HIDDEN > 0 && (
 							<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-500/15 border border-gray-500/20 text-gray-400">
 								👁️ {counts.ELEMENT_HIDDEN} Hidden
@@ -394,14 +402,14 @@ export function ExtractionResults({
 													⚠️ HEALED
 												</span>
 											)}
-											{f.status === "SELECTOR_BROKEN" && (
+											{(f.status === "SELECTOR_BROKEN" || f.status === "TAG_CHANGED") && (
 												<div className="flex flex-col items-center gap-1">
 													<span
 														className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border cursor-default ${brokenBadgeClass}`}
-														title="Selector Broken"
+														title={f.status === "TAG_CHANGED" ? "Tag type changed — structural drift" : "Selector Broken"}
 													>
-														<span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />❌
-														BROKEN
+														<span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+														{f.status === "TAG_CHANGED" ? "🔀 TAG" : "❌ BROKEN"}
 													</span>
 													<button
 														type="button"
