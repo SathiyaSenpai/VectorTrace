@@ -15,7 +15,6 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 			setCandidates([]);
 			setProgress({ current: 0, total: 0 });
 
-			// Set up listener for batch embedding generation progress
 			const progressListener = (message: MessageType) => {
 				if (message.type === "SEARCH_PROGRESS") {
 					setProgress({
@@ -58,8 +57,6 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 			try {
 				console.log(`[useChangeDetection] Accepting candidate for field ${fieldId}:`, candidate);
 
-				// 0. Capture the field's current (broken) selector before we overwrite it,
-				//    so the upcoming re-extraction can report a precise from -> to heal.
 				let previousSelector = "";
 				try {
 					const schema = await getSchema(schemaId);
@@ -72,7 +69,6 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 					);
 				}
 
-				// 1. Generate embedding for the new text content in background
 				const response = await chrome.runtime.sendMessage({
 					type: "GENERATE_EMBEDDING",
 					text: candidate.textContent,
@@ -83,7 +79,6 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 					throw new Error("Failed to generate embedding for the accepted candidate text");
 				}
 
-				// 2. Update schema local storage (and IndexedDB via updateSchemaField hook)
 				await updateSchemaField(schemaId, fieldId, {
 					cssSelector: candidate.cssSelector,
 					xpathSelector: candidate.xpathSelector,
@@ -91,7 +86,6 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 					embedding,
 				});
 
-				// 3. Record the heal so the next extraction flags this field as HEALED.
 				await recordPendingHeal(fieldId, previousSelector, candidate.cssSelector);
 
 				console.log("[useChangeDetection] Candidate successfully accepted and storage updated.");
