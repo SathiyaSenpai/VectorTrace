@@ -6,7 +6,7 @@ VectorTrace is an open-source, local-first **Chrome Extension (Manifest V3)** fo
 defining scraper fields on any webpage. When a site redesigns and a CSS selector breaks,
 instead of failing silently VectorTrace uses **semantic embeddings** (384-dim vectors from
 `all-MiniLM-L6-v2`) to find the element that most closely matches what you originally
-selected — even if the HTML structure changed completely.
+selected even if the HTML structure changed completely.
 
 Everything runs in your browser via WebAssembly. **No servers. No APIs. No data leaves your
 device.**
@@ -18,30 +18,30 @@ device.**
 Traditional scrapers break the moment a website changes its markup, and they usually fail
 with a single unhelpful "selector not found". VectorTrace is different:
 
-- **It tells you _why_ a field failed** — broken selector, drifted content, hidden element,
+- **It tells you _why_ a field failed** : broken selector, drifted content, hidden element,
   or empty page — with distinct, explainable statuses.
-- **It repairs itself** — semantic matching finds the new home of your data and rewrites the
+- **It repairs itself** : semantic matching finds the new home of your data and rewrites the
   selector, manually or automatically.
-- **It respects your privacy** — all inference runs locally in an offscreen WASM runtime.
+- **It respects your privacy** : all inference runs locally in an offscreen WASM runtime.
 
 ---
 
 ## Key Features
 
-- **Point-and-Click Picker** — Visually capture fields; robust CSS + XPath selectors are
+- **Point and Click Picker** Visually capture fields; robust CSS + XPath selectors are
   generated automatically (ID / `data-*` / `:nth-of-type` strategies, SVG-aware, 500-char
   capped).
-- **Distinct Failure States** — `OK`, `HEALED`, `SELECTOR_BROKEN`, `TEXT_CONTENT_CHANGED`,
+- **Distinct Failure States** `OK`, `HEALED`, `SELECTOR_BROKEN`, `TEXT_CONTENT_CHANGED`,
   `ELEMENT_HIDDEN`, `EMPTY_PAGE`, each with a badge and a one-line diagnosis.
-- **Semantic Self-Healing** — On-device cosine-similarity ranking of page elements against
+- **Semantic Self-Healing** On-device cosine-similarity ranking of page elements against
   the stored embedding, with confidence-scored candidates and page preview highlights.
-- **Auto-Heal (optional)** — Automatically apply the best replacement above a configurable
+- **Auto-Heal (optional)** Automatically apply the best replacement above a configurable
   confidence threshold, then re-extract.
-- **Field Health Summary** — At-a-glance counts and an overall diagnosis after every run.
-- **Export & Backup** — Copy/Export results (JSON/CSV); import/export individual schemas or
+- **Field Health Summary** At-a-glance counts and an overall diagnosis after every run.
+- **Export & Backup** Copy/Export results (JSON/CSV); import/export individual schemas or
   full backups (including embeddings).
-- **Two Themes** — Dark and a calm "Sakura" light theme.
-- **100% Local** — `chrome.storage.local` for metadata, IndexedDB for embeddings, WASM model
+- **Two Themes** Dark and a calm light theme.
+- **100% Local** `chrome.storage.local` for metadata, IndexedDB for embeddings, WASM model
   in an offscreen document.
 
 See [`features.md`](./features.md) for the complete, categorized feature list with edge
@@ -51,13 +51,13 @@ cases and limitations.
 
 ## How Self-Healing Works
 
-1. **Capture** — When you pick an element, its text is embedded into a 384-dim vector and
+1. **Capture**. When you pick an element, its text is embedded into a 384-dim vector and
    stored in IndexedDB alongside the CSS/XPath selectors.
-2. **Extract** — Selectors are evaluated (CSS first, XPath fallback) and the extracted text is
+2. **Extract**. Selectors are evaluated (CSS first, XPath fallback) and the extracted text is
    verified against the stored text to catch silent "phantom swaps".
-3. **Detect** — If a field breaks or drifts, VectorTrace enumerates the page's visible text
+3. **Detect**. If a field breaks or drifts, VectorTrace enumerates the page's visible text
    nodes, embeds them in chunks, and ranks them by cosine similarity to the stored vector.
-4. **Heal** — You accept the best candidate (or auto-heal applies it). The selector is
+4. **Heal**. You accept the best candidate (or auto-heal applies it). The selector is
    rewritten, the heal is recorded, and re-extraction surfaces a `HEALED` badge showing the
    exact `oldSelector → newSelector` swap.
 
