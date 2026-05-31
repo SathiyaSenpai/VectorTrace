@@ -5,7 +5,7 @@ import { getHealingSettings } from "../../shared/settings";
 import type { ExtractionResult, SimilarityCandidate } from "../../shared/types";
 
 /** Statuses that represent a field whose selector should be repaired. */
-const HEALABLE_STATUSES = new Set(["SELECTOR_BROKEN", "TEXT_CONTENT_CHANGED"]);
+const HEALABLE_STATUSES = new Set(["SELECTOR_BROKEN", "TEXT_CONTENT_CHANGED", "TAG_CHANGED"]);
 
 /** Outcome of an auto-heal pass. */
 export type AutoHealResult = {
