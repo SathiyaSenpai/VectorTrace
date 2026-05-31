@@ -1,11 +1,6 @@
-// A global promise to avoid race conditions when creating the offscreen document.
+// Global promise to prevent race condition when creating the offscreen doc
 let creating: Promise<void> | null = null;
 
-/**
- * `self` inside the MV3 service worker is a `ServiceWorkerGlobalScope`, which exposes
- * `clients`. The default DOM `Window` typings used in the bundler context do not, so we
- * describe the minimal shape we rely on for the fallback existence check.
- */
 type ServiceWorkerLike = {
 	clients?: {
 		matchAll(options: {
@@ -15,16 +10,8 @@ type ServiceWorkerLike = {
 	};
 };
 
-/**
- * Determines whether an offscreen document for the given URL already exists.
- * Prefers the modern `chrome.runtime.getContexts` API and falls back to the
- * service-worker `clients` API on older Chrome builds.
- *
- * @param offscreenUrl - The fully-qualified URL of the offscreen document.
- * @returns A promise resolving to `true` if an offscreen document already exists.
- */
+// Check if offscreen doc already exists
 async function offscreenDocumentExists(offscreenUrl: string): Promise<boolean> {
-	// Modern API (Chrome 116+): query existing extension contexts directly.
 	const runtimeWithContexts = chrome.runtime as typeof chrome.runtime & {
 		getContexts?: (filter: {
 			contextTypes: string[];
@@ -44,7 +31,6 @@ async function offscreenDocumentExists(offscreenUrl: string): Promise<boolean> {
 		}
 	}
 
-	// Fallback for older Chrome: inspect open window clients.
 	const sw = self as unknown as ServiceWorkerLike;
 	if (sw.clients) {
 		try {
@@ -58,14 +44,7 @@ async function offscreenDocumentExists(offscreenUrl: string): Promise<boolean> {
 	return false;
 }
 
-/**
- * Ensures the offscreen document is created and active. Safe to call repeatedly:
- * concurrent callers share a single creation promise, and an already-open document
- * short-circuits immediately. If Chrome silently tore the document down, the next
- * call transparently recreates it.
- *
- * @returns A promise that resolves once the offscreen document is guaranteed to exist.
- */
+// Ensures offscreen document is open. Safe to call concurrently.
 async function setupOffscreenDocument(): Promise<void> {
 	const offscreenUrl = chrome.runtime.getURL("offscreen.html");
 
@@ -73,7 +52,6 @@ async function setupOffscreenDocument(): Promise<void> {
 		return;
 	}
 
-	// Another caller is already creating the document — await the same promise.
 	if (creating) {
 		await creating;
 		return;
@@ -87,8 +65,6 @@ async function setupOffscreenDocument(): Promise<void> {
 		})
 		.then(() => undefined)
 		.catch((err: unknown) => {
-			// Chrome throws if a document already exists (race between existence check
-			// and creation). Treat that specific case as success; rethrow anything else.
 			const message = err instanceof Error ? err.message : String(err);
 			if (message.includes("Only a single offscreen document")) {
 				return;
@@ -103,28 +79,14 @@ async function setupOffscreenDocument(): Promise<void> {
 	}
 }
 
-/**
- * Maximum time to wait for the offscreen document to return an embedding before
- * giving up. The first call also triggers a one-time model download/warm-up, so the
- * window is generous; subsequent calls resolve in tens of milliseconds.
- */
 const EMBEDDING_TIMEOUT_MS = 60_000;
 
-/** Shape of the response returned by the offscreen embedding handler. */
 type OffscreenEmbeddingResponse = {
 	embedding?: number[];
 	error?: string;
 };
 
-/**
- * Delegate embedding generation to the Offscreen Document. This keeps the heavy WASM
- * module execution and `window` dependencies out of the service worker, which is not
- * allowed to evaluate WebAssembly with a DOM context under Manifest V3.
- *
- * @param text - The text to embed. Truncated to 200 characters to bound model latency.
- * @returns A promise resolving to the 384-dimensional embedding as a `number[]`.
- * @throws If the offscreen document errors, returns no embedding, or times out.
- */
+// Requests embedding from offscreen document (WASM requires DOM context in MV3)
 export async function generateEmbedding(text: string): Promise<number[]> {
 	const truncated = text.slice(0, 200);
 	const startTime = Date.now();
@@ -137,8 +99,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 	return new Promise<number[]>((resolve, reject) => {
 		let settled = false;
 
-		// Watchdog: if the offscreen document was torn down mid-flight the callback may
-		// never fire, which would otherwise leave the caller hanging forever.
 		const timeout = setTimeout(() => {
 			if (settled) return;
 			settled = true;
