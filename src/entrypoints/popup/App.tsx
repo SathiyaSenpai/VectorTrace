@@ -216,7 +216,7 @@ export default function App() {
 								isSakura ? "text-[#a04e5d]" : "text-blue-200"
 							}`}
 						>
-							v0.1.0
+							v1.0.0
 						</span>
 						<button
 							type="button"
@@ -520,7 +520,7 @@ export default function App() {
 									>
 										VectorTrace System Engine
 									</span>
-									<span className="text-[9px] text-gray-500">v0.1.0 • Under AGPLv3 License</span>
+									<span className="text-[9px] text-gray-500">v1.0.0 • Under AGPLv3 License</span>
 								</div>
 							</div>
 						</div>
