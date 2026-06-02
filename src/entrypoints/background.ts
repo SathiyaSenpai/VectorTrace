@@ -1,5 +1,5 @@
 import { generateEmbedding } from "../background/embedding-pipeline";
-import { cosineSimilarity, rankCandidates } from "../background/similarity";
+import { cosineSimilarity, rankCandidates, type StoredFieldContext } from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
 import { getFieldEmbedding, saveFieldEmbedding } from "../shared/idb-store";
 import { sendMessageWithRetry } from "../shared/messaging";
@@ -18,7 +18,38 @@ export default defineBackground({
 	},
 });
 
-const sessionEmbeddingCache = new Map<string, number[]>();
+// LRU cache with max-size eviction to prevent unbounded memory growth
+// (session can process thousands of embeddings across multiple large pages)
+class LRUEmbeddingCache {
+	private map = new Map<string, number[]>();
+	private readonly maxSize: number;
+
+	constructor(maxSize: number) {
+		this.maxSize = maxSize;
+	}
+
+	get(key: string): number[] | undefined {
+		if (!this.map.has(key)) return undefined;
+		const value = this.map.get(key)!;
+		// Re-insert to mark as most recently used
+		this.map.delete(key);
+		this.map.set(key, value);
+		return value;
+	}
+
+	set(key: string, value: number[]): void {
+		if (this.map.has(key)) {
+			this.map.delete(key);
+		} else if (this.map.size >= this.maxSize) {
+			// Evict least recently used (oldest entry in Map insertion order)
+			const firstKey = this.map.keys().next().value;
+			if (firstKey !== undefined) this.map.delete(firstKey);
+		}
+		this.map.set(key, value);
+	}
+}
+
+const sessionEmbeddingCache = new LRUEmbeddingCache(2000);
 
 async function handleMessage(
 	message: MessageType,
@@ -118,23 +149,43 @@ async function handleMessage(
 			const start = Date.now();
 			const { fieldId } = message;
 
-			// 1. Load stored embedding
+			// 1. Load stored embedding + field metadata
 			const field = await getFieldEmbedding(fieldId);
 			if (!field?.embedding) {
 				throw new Error(`Embedding not found for fieldId: ${fieldId}`);
 			}
 
-			// 2. Ask content script for page elements
+			// Build stored field context for multi-signal ranking
+			// Use ground-truth structural metadata saved at field-definition time
+			const storedFieldContext: StoredFieldContext = {
+				tagName: field.tagName || "",
+				textLength: (field.textContent || "").length,
+				depth: field.depth ?? -1,
+				isLeaf: field.isLeaf ?? true,
+				ancestorContext: field.ancestorContext ?? [],
+			};
+
+			// 2. Ask content script for page elements (with structural metadata)
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 			if (!tab?.id) {
 				throw new Error("No active tab found");
 			}
 
 			console.log("[background] Requesting ENUMERATE_PAGE from content script...");
+			type EnumeratedCandidate = {
+				text: string;
+				cssSelector: string;
+				xpathSelector: string;
+				tagName: string;
+				depth?: number;
+				isLeaf?: boolean;
+				textLength?: number;
+				ancestorContext?: string[];
+			};
 			const response = (await sendMessageWithRetry(tab.id, {
 				type: "ENUMERATE_PAGE",
 			})) as
-				| { candidates?: { text: string; cssSelector: string; xpathSelector: string; tagName: string }[] }
+				| { candidates?: EnumeratedCandidate[] }
 				| undefined;
 
 			const candidates = response?.candidates;
@@ -148,7 +199,19 @@ async function handleMessage(
 
 			// 3. Batch generate embeddings (chunks of 25)
 			const chunkSize = 25;
-			const candidatesWithEmbeddings = [];
+			const candidatesWithEmbeddings: {
+				textContent: string;
+				cssSelector: string;
+				xpathSelector: string;
+				tagName: string;
+				embedding: number[];
+				metadata?: {
+					depth: number;
+					isLeaf: boolean;
+					textLength: number;
+					ancestorContext: string[];
+				};
+			}[] = [];
 			const total = candidates.length;
 
 			for (let i = 0; i < total; i += chunkSize) {
@@ -156,16 +219,27 @@ async function handleMessage(
 				const results = await Promise.all(
 					chunk.map(async (cand) => {
 						try {
-							let embedding = sessionEmbeddingCache.get(cand.text);
+							// Cache by truncated key (first 512 chars) to match what actually
+							// gets embedded — avoids cache misses and redundant embedding calls
+							const cacheKey = cand.text.slice(0, 512);
+							let embedding = sessionEmbeddingCache.get(cacheKey);
 							if (!embedding) {
 								embedding = await generateEmbedding(cand.text);
-								sessionEmbeddingCache.set(cand.text, embedding);
+								sessionEmbeddingCache.set(cacheKey, embedding);
 							}
 							return {
 								textContent: cand.text,
 								cssSelector: cand.cssSelector,
 								xpathSelector: cand.xpathSelector,
+								tagName: cand.tagName || "",
 								embedding,
+								// Pass structural metadata for multi-signal ranking
+								metadata: cand.depth !== undefined ? {
+									depth: cand.depth,
+									isLeaf: cand.isLeaf ?? true,
+									textLength: cand.textLength ?? cand.text.length,
+									ancestorContext: cand.ancestorContext ?? [],
+								} : undefined,
 							};
 						} catch (err) {
 							console.error(`[background] Failed to embed text chunk: "${cand.text}"`, err);
@@ -174,16 +248,10 @@ async function handleMessage(
 					}),
 				);
 
-				let earlyMatch = false;
-
+				// No early-exit — all candidates must be scored so multi-signal ranking
+				// can find the best overall candidate, not just the first high-embedding-score one
 				for (const res of results) {
-					if (res) {
-						candidatesWithEmbeddings.push(res);
-						const score = cosineSimilarity(field.embedding, res.embedding);
-						if (score >= 0.95) {
-							earlyMatch = true;
-						}
-					}
+					if (res) candidatesWithEmbeddings.push(res);
 				}
 
 				// Send progress back to popup runtime
@@ -196,18 +264,11 @@ async function handleMessage(
 					.catch(() => {
 						// Ignore errors if popup closed
 					});
-
-				if (earlyMatch) {
-					console.log(
-						`[background] Found highly confident candidate (score >= 0.95). Terminating search early.`,
-					);
-					break;
-				}
 			}
 
-			// 4. Rank candidates by similarity
-			console.log("[background] Ranking candidates...");
-			const ranked = rankCandidates(field.embedding, candidatesWithEmbeddings);
+			// 4. Rank candidates using multi-signal algorithm
+			console.log("[background] Ranking candidates with multi-signal algorithm...");
+			const ranked = rankCandidates(field.embedding, candidatesWithEmbeddings, storedFieldContext);
 
 			console.log(`[background] FIND_CANDIDATES finished in ${Date.now() - start}ms`);
 			sendResponse({ candidates: ranked });

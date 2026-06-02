@@ -71,6 +71,7 @@ describe("chrome-storage wrapper", () => {
 				cssSelector: "h1",
 				xpathSelector: "//h1",
 				textContent: "Hello",
+			tagName: "h1",
 				embedding: [0.1, 0.2, 0.3],
 				timestamp: 123456789,
 			},

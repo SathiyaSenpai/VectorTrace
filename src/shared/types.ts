@@ -9,6 +9,9 @@ export interface FieldDefinition {
 	tagName: string; // lowercase HTML tag name at definition time (e.g. "h1", "p", "span")
 	embedding: number[]; // 384-dim Float32Array converted to number[]
 	timestamp: number; // Date.now() at definition time
+	depth?: number; // DOM depth relative to body at definition time
+	isLeaf?: boolean; // whether element was a leaf text node at definition time
+	ancestorContext?: string[]; // ancestor class names / data attributes at definition time
 }
 
 export interface Schema {
@@ -93,7 +96,16 @@ export type MessageType =
 	| { type: "REMOVE_HIGHLIGHT" }
 	| {
 			type: "CANDIDATES_FOUND";
-			candidates: { text: string; cssSelector: string; xpathSelector: string; tagName: string }[];
+			candidates: {
+				text: string;
+				cssSelector: string;
+				xpathSelector: string;
+				tagName: string;
+				depth: number;
+				isLeaf: boolean;
+				textLength: number;
+				ancestorContext: string[];
+			}[];
 	  }
 	| { type: "OFFSCREEN_GENERATE_EMBEDDING"; text: string }
 	| { type: "MODEL_DOWNLOAD_PROGRESS"; progress: number }

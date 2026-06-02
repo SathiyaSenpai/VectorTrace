@@ -1,6 +1,6 @@
 import { ElementPicker } from "../content/element-picker";
 import { generateCSSSelector, generateXPath } from "../content/selector-generator";
-import { enumeratePageElements, extractFields } from "../content/text-extractor";
+import { enumeratePageElements, extractFields, getDomDepth, getAncestorContext, isLeafTextElement } from "../content/text-extractor";
 import { getSchema } from "../shared/chrome-storage";
 import { consumePendingHeals } from "../shared/heal-tracker";
 import type { ExtractionResult, MessageType } from "../shared/types";
@@ -18,13 +18,22 @@ export default defineContentScript({
 
 		const picker = new ElementPicker({
 			onSelect: (element) => {
-				const text = element.textContent?.trim() || "";
+				// Use innerText (respects visual rendering) instead of textContent
+				// to avoid capturing hidden descendant text when clicking container elements
+				const htmlEl = element as HTMLElement;
+				const text = (htmlEl.innerText ?? element.textContent)?.trim() || "";
 				const cssSelector = generateCSSSelector(element) || "";
 				const xpathSelector = generateXPath(element) || "";
 
-				console.log("[content] Selected element textContent:", text);
+				// Compute structural metadata at pick time for ground-truth ranking signals
+				const depth = getDomDepth(element);
+				const isLeaf = isLeafTextElement(htmlEl);
+				const ancestorContext = getAncestorContext(element);
+
+				console.log("[content] Selected element innerText:", text);
 				console.log("[content] Generated CSS selector:", cssSelector);
 				console.log("[content] Generated XPath:", xpathSelector);
+				console.log("[content] Structural context — depth:", depth, "isLeaf:", isLeaf);
 
 				chrome.runtime.sendMessage(
 					{
@@ -39,6 +48,9 @@ export default defineContentScript({
 							textContent: text,
 							tagName: element.tagName.toLowerCase(),
 							timestamp: Date.now(),
+							depth,
+							isLeaf,
+							ancestorContext,
 						},
 					} as MessageType,
 					(response) => {
