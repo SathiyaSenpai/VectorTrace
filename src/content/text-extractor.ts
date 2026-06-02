@@ -98,12 +98,17 @@ function isTextMatch(stored: string, extracted: string): boolean {
 	const b = normalizeText(extracted);
 
 	if (a === b) return true;
-	if (a.includes(b) || b.includes(a)) return true;
 
+	// Only allow substring match when shorter string is ≥50% of longer (prevents "new" matching "new york times...")
+	const shorterLen = Math.min(a.length, b.length);
+	const longerLen = Math.max(a.length, b.length);
+	if (shorterLen >= longerLen * 0.5 && (a.includes(b) || b.includes(a))) return true;
+
+	// Prefix match requires ≥90% overlap AND minimum 30 chars to avoid unrelated-string false positives
 	const shorter = a.length <= b.length ? a : b;
 	const longer = a.length <= b.length ? b : a;
-	if (shorter.length > 20) {
-		const prefixLen = Math.floor(shorter.length * 0.8);
+	if (shorter.length >= 30) {
+		const prefixLen = Math.floor(shorter.length * 0.9);
 		if (longer.startsWith(shorter.slice(0, prefixLen))) return true;
 	}
 
@@ -134,15 +139,27 @@ function findElementOnPage(storedText: string, storedTagName: string): Element |
 		visibleElements.push({ el, text: elText });
 	}
 
-	for (const { el, text } of visibleElements) {
-		if (text === normalizedStored) return el;
-	}
+	// Collect all matching candidates then pick the best one
+	// (first match is wrong on pages like HN where same text appears in link + row container)
+	const exactMatches: { el: Element; text: string }[] = [];
+	const fuzzyMatches: { el: Element; text: string }[] = [];
 
 	for (const { el, text } of visibleElements) {
-		if (isTextMatch(storedText, text)) return el;
+		if (text === normalizedStored) exactMatches.push({ el, text });
+		else if (isTextMatch(storedText, text)) fuzzyMatches.push({ el, text });
 	}
 
-	return null;
+	// Pick best: prefer matching tagName, then smallest textContent (most leaf-like/specific)
+	const pickBest = (matches: { el: Element; text: string }[]): Element | null => {
+		if (matches.length === 0) return null;
+		if (matches.length === 1) return matches[0].el;
+		const withTag = tag ? matches.filter((m) => m.el.tagName.toLowerCase() === tag) : [];
+		const pool = withTag.length > 0 ? withTag : matches;
+		pool.sort((a, b) => (a.el.textContent?.length ?? 0) - (b.el.textContent?.length ?? 0));
+		return pool[0].el;
+	};
+
+	return pickBest(exactMatches) ?? pickBest(fuzzyMatches);
 }
 
 export interface ExtractFieldInput {
@@ -179,10 +196,12 @@ export async function extractFields(fields: ExtractFieldInput[]): Promise<Extrac
 			}
 
 			let element: Element | null = null;
+			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+			const timeout = isTest ? 50 : 3000;
 
 			if (field.cssSelector) {
 				try {
-					element = await waitForElement(field.cssSelector, 1000);
+					element = await waitForElement(field.cssSelector, timeout);
 				} catch (err) {
 					console.error(`Invalid CSS selector for field "${field.label || field.fieldId}":`, err);
 				}
@@ -190,7 +209,7 @@ export async function extractFields(fields: ExtractFieldInput[]): Promise<Extrac
 
 			if (!element && field.xpathSelector) {
 				try {
-					element = await waitForXpath(field.xpathSelector, 1000);
+					element = await waitForXpath(field.xpathSelector, timeout);
 				} catch (err) {
 					console.error(`Invalid XPath selector for field "${field.label || field.fieldId}":`, err);
 				}
@@ -282,15 +301,96 @@ export async function extractFields(fields: ExtractFieldInput[]): Promise<Extrac
 	);
 }
 
-export function enumeratePageElements(): {
+/**
+ * Extracts only the direct (own) text content of an element, excluding text
+ * from child elements. This produces much more precise embeddings for
+ * elements that are containers — e.g. a <td> with a link inside it
+ * should yield the link's text, not the entire row.
+ */
+function getOwnText(el: HTMLElement): string {
+	let ownText = "";
+	for (let i = 0; i < el.childNodes.length; i++) {
+		const child = el.childNodes[i];
+		if (child.nodeType === Node.TEXT_NODE) {
+			ownText += child.textContent || "";
+		}
+	}
+	return ownText.trim();
+}
+
+/**
+ * Checks if the element is a "leaf" from a text perspective:
+ * either it has no child elements, or all of its text comes from
+ * direct text nodes (child elements have negligible text).
+ */
+export function isLeafTextElement(el: HTMLElement): boolean {
+	if (el.children.length === 0) return true;
+	const fullText = (el.textContent || "").trim();
+	const ownText = getOwnText(el);
+	// If own text accounts for most of the content, treat as leaf
+	if (fullText.length > 0 && ownText.length / fullText.length >= 0.8) return true;
+	return false;
+}
+
+/**
+ * Computes the DOM depth of an element relative to document.body.
+ */
+export function getDomDepth(el: Element): number {
+	let depth = 0;
+	let current: Element | null = el;
+	while (current && current !== document.body && current !== document.documentElement) {
+		depth++;
+		current = current.parentElement;
+	}
+	return depth;
+}
+
+/**
+ * Collects relevant class names and data attributes from the element
+ * and its nearest ancestors (up to 3 levels) for structural context matching.
+ */
+export function getAncestorContext(el: Element, levels = 3): string[] {
+	const ctx: string[] = [];
+	let current: Element | null = el;
+	for (let i = 0; i < levels && current && current !== document.body; i++) {
+		// Collect class names
+		if (current.className && typeof current.className === "string") {
+			for (const cls of current.className.split(/\s+/)) {
+				if (cls && cls.length > 1 && cls.length < 50) {
+					ctx.push(cls);
+				}
+			}
+		}
+		// Collect data-* attributes
+		for (const attr of Array.from(current.attributes)) {
+			if (attr.name.startsWith("data-") && attr.name !== "data-vectortrace") {
+				ctx.push(`${attr.name}=${attr.value}`);
+			}
+		}
+		current = current.parentElement;
+	}
+	return ctx;
+}
+
+export interface EnumeratedElement {
 	text: string;
 	cssSelector: string;
 	xpathSelector: string;
 	tagName: string;
-}[] {
+	/** DOM depth relative to body */
+	depth: number;
+	/** Whether this is a leaf text element */
+	isLeaf: boolean;
+	/** Text length for structural comparison */
+	textLength: number;
+	/** Ancestor context classes/attributes for structural matching */
+	ancestorContext: string[];
+}
+
+export function enumeratePageElements(): EnumeratedElement[] {
 	if (!document.body) return [];
 
-	const candidates: { text: string; element: HTMLElement }[] = [];
+	const candidates: { text: string; element: HTMLElement; isLeaf: boolean }[] = [];
 
 	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
 		acceptNode(node) {
@@ -302,11 +402,21 @@ export function enumeratePageElements(): {
 			if (el.hasAttribute("data-vectortrace")) {
 				return NodeFilter.FILTER_REJECT;
 			}
+			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+			if (!isTest) {
+				// Cheap fast-path rejection before calling getComputedStyle (expensive on large DOMs)
+				if (el.offsetHeight === 0 && el.offsetWidth === 0 && el.tagName !== "BODY" && el.tagName !== "HTML") {
+					// Skip zero-size elements early — getComputedStyle confirms if needed
+					const quickStyle = window.getComputedStyle(el);
+					if (quickStyle.position !== "fixed" && quickStyle.position !== "sticky") {
+						return NodeFilter.FILTER_REJECT;
+					}
+				}
+			}
 			const style = window.getComputedStyle(el);
 			if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
 				return NodeFilter.FILTER_REJECT;
 			}
-			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 			if (!isTest) {
 				const rect = el.getBoundingClientRect();
 				if (rect.width === 0 && rect.height === 0) {
@@ -320,45 +430,93 @@ export function enumeratePageElements(): {
 	let node = walker.nextNode();
 	while (node) {
 		const el = node as HTMLElement;
+		const isLeaf = isLeafTextElement(el);
 		const text = el.textContent?.trim() || "";
+
 		if (text.length >= 2) {
-			candidates.push({ text, element: el });
+			candidates.push({ text, element: el, isLeaf });
 		}
 		node = walker.nextNode();
 	}
 
-	const uniqueMap = new Map<string, HTMLElement>();
-	for (const candidate of candidates) {
-		const existing = uniqueMap.get(candidate.text);
-		if (existing) {
-			if (existing.contains(candidate.element)) {
-				uniqueMap.set(candidate.text, candidate.element);
-			}
+	// === IMPROVED DEDUPLICATION ===
+	// Instead of deduplicating by text and losing elements, we keep both
+	// leaf and parent elements but prefer leaf elements. We use a two-pass
+	// approach:
+	// 1. Collect all leaf elements first (these are most precise)
+	// 2. Add parent/container elements only if they provide unique text
+	//    not already covered by any leaf element
+
+	const leafCandidates: { text: string; element: HTMLElement; isLeaf: boolean }[] = [];
+	const nonLeafCandidates: { text: string; element: HTMLElement; isLeaf: boolean }[] = [];
+
+	for (const cand of candidates) {
+		if (cand.isLeaf) {
+			leafCandidates.push(cand);
 		} else {
-			uniqueMap.set(candidate.text, candidate.element);
+			nonLeafCandidates.push(cand);
 		}
 	}
 
-	const uniqueCandidates = Array.from(uniqueMap.entries()).map(([text, element]) => ({
-		text,
-		element,
-	}));
+	// Do not deduplicate leaf elements by text — same text at different DOM positions
+	// (e.g. multiple "100 points" spans on HN) must all be kept as separate candidates.
+	// We only deduplicate by element reference (tree walker already ensures uniqueness).
+	const leafTexts = new Set<string>();
 
-	uniqueCandidates.sort((a, b) => a.text.length - b.text.length);
+	// Build final results: leaf elements first (priority), then non-leaf
+	const results: EnumeratedElement[] = [];
 
-	const topCandidates = uniqueCandidates.slice(0, 500);
-
-	const results: { text: string; cssSelector: string; xpathSelector: string; tagName: string }[] = [];
-	for (const candidate of topCandidates) {
-		const cssSelector = generateCSSSelector(candidate.element) || "";
-		const xpathSelector = generateXPath(candidate.element) || "";
+	// Process all leaf elements without text-based deduplication
+	for (const { text, element } of leafCandidates) {
+		leafTexts.add(text);
+		const cssSelector = generateCSSSelector(element) || "";
+		const xpathSelector = generateXPath(element) || "";
 		results.push({
-			text: candidate.text,
+			text,
 			cssSelector,
 			xpathSelector,
-			tagName: candidate.element.tagName.toLowerCase(),
+			tagName: element.tagName.toLowerCase(),
+			depth: getDomDepth(element),
+			isLeaf: true,
+			textLength: text.length,
+			ancestorContext: getAncestorContext(element),
 		});
 	}
 
-	return results;
+	// Non-leaf deduplication: keep only unique text not already covered by any leaf
+	const nonLeafMap = new Map<string, HTMLElement>();
+	for (const cand of nonLeafCandidates) {
+		if (leafTexts.has(cand.text)) continue;
+		const existing = nonLeafMap.get(cand.text);
+		if (existing) {
+			if (existing.contains(cand.element)) {
+				nonLeafMap.set(cand.text, cand.element);
+			}
+		} else {
+			nonLeafMap.set(cand.text, cand.element);
+		}
+	}
+
+	// Process non-leaf elements (capped to avoid explosion)
+	let nonLeafCount = 0;
+	const maxNonLeaf = 200;
+	for (const [text, element] of nonLeafMap) {
+		if (nonLeafCount >= maxNonLeaf) break;
+		const cssSelector = generateCSSSelector(element) || "";
+		const xpathSelector = generateXPath(element) || "";
+		results.push({
+			text,
+			cssSelector,
+			xpathSelector,
+			tagName: element.tagName.toLowerCase(),
+			depth: getDomDepth(element),
+			isLeaf: false,
+			textLength: text.length,
+			ancestorContext: getAncestorContext(element),
+		});
+		nonLeafCount++;
+	}
+
+	// Cap total at 800 (increased from 500 for more coverage)
+	return results.slice(0, 800);
 }

@@ -88,7 +88,7 @@ type OffscreenEmbeddingResponse = {
 
 // Requests embedding from offscreen document (WASM requires DOM context in MV3)
 export async function generateEmbedding(text: string): Promise<number[]> {
-	const truncated = text.slice(0, 200);
+	const truncated = text.slice(0, 512);
 	const startTime = Date.now();
 	console.log(
 		`[embedding-pipeline] Requesting embedding from offscreen for: "${truncated.substring(0, 30)}..."`,
