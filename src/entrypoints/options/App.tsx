@@ -307,7 +307,7 @@ export default function App() {
 					</div>
 					<div className="text-right">
 						<span className="text-xs font-mono px-2 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700/60">
-							v1.0.0
+							v1.0.1
 						</span>
 					</div>
 				</div>
