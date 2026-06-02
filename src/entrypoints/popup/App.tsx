@@ -199,15 +199,11 @@ export default function App() {
 			>
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						<div
-							className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black border ${
-								isSakura
-									? "bg-white/80 border-pink-200 text-[#d65b70]"
-									: "bg-white/15 border-white/20 text-white"
-							}`}
-						>
-							🌸
-						</div>
+						<img
+							src="/icon-32.png"
+							alt="VectorTrace Logo"
+							className="w-6 h-6 rounded-md object-contain border border-white/10"
+						/>
 						<h1 className="text-sm font-black tracking-wider text-white">VECTORTRACE</h1>
 					</div>
 					<div className="flex items-center gap-2">

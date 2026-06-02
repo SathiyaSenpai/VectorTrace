@@ -297,9 +297,11 @@ export default function App() {
 				{/* Top Branding Header */}
 				<div className="flex items-center justify-between border-b border-gray-800 pb-5">
 					<div className="flex items-center gap-3">
-						<div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-500/10">
-							VT
-						</div>
+						<img
+							src="/icon-96.png"
+							alt="VectorTrace Logo"
+							className="w-9 h-9 rounded-xl object-contain shadow-lg shadow-blue-500/10 border border-gray-800"
+						/>
 						<div>
 							<h1 className="text-xl font-black tracking-wider text-white">VECTORTRACE</h1>
 							<p className="text-xs text-gray-400">Settings and Schema Management Center</p>
