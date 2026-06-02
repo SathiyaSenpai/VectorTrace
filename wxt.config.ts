@@ -22,5 +22,14 @@ export default defineConfig({
 	},
 	vite: () => ({
 		plugins: [onnxBundlePlugin()],
+		build: {
+			// Vite injects a `modulePreload` polyfill IIFE that calls `document.createElement()`
+			// into a shared chunk. Because the service worker also imports from that chunk,
+			// the polyfill crashes the background script with "document is not defined"
+			// (Chrome error: "Service worker registration failed. Status code: 15").
+			// Chrome extensions target a modern Chrome baseline that has native modulepreload
+			// support, so the polyfill is unnecessary and must be disabled.
+			modulePreload: { polyfill: false },
+		},
 	}),
 });
