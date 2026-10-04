@@ -163,6 +163,7 @@ async function handleMessage(
 				depth: field.depth ?? -1,
 				isLeaf: field.isLeaf ?? true,
 				ancestorContext: field.ancestorContext ?? [],
+				cssSelector: field.cssSelector || "",
 			};
 
 			// 2. Ask content script for page elements (with structural metadata)
