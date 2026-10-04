@@ -49,6 +49,10 @@ class LRUEmbeddingCache {
 	}
 }
 
+function getEmbeddingCacheKey(text: string): string {
+	return text.replace(/\s+/g, " ").trim().slice(0, 512);
+}
+
 const sessionEmbeddingCache = new LRUEmbeddingCache(2000);
 
 async function handleMessage(
@@ -58,10 +62,11 @@ async function handleMessage(
 	try {
 		if (message.type === "GENERATE_EMBEDDING") {
 			const start = Date.now();
-			let embedding = sessionEmbeddingCache.get(message.text);
+			const cacheKey = getEmbeddingCacheKey(message.text);
+			let embedding = sessionEmbeddingCache.get(cacheKey);
 			if (!embedding) {
 				embedding = await generateEmbedding(message.text);
-				sessionEmbeddingCache.set(message.text, embedding);
+				sessionEmbeddingCache.set(cacheKey, embedding);
 			}
 			console.log(`[background] GENERATE_EMBEDDING finished in ${Date.now() - start}ms`);
 			sendResponse({ embedding });
@@ -89,10 +94,11 @@ async function handleMessage(
 		} else if (message.type === "FIELD_SELECTED") {
 			const start = Date.now();
 			// Generate embedding for the field's text content
-			let embedding = sessionEmbeddingCache.get(message.field.textContent);
+			const cacheKey = getEmbeddingCacheKey(message.field.textContent);
+			let embedding = sessionEmbeddingCache.get(cacheKey);
 			if (!embedding) {
 				embedding = await generateEmbedding(message.field.textContent);
-				sessionEmbeddingCache.set(message.field.textContent, embedding);
+				sessionEmbeddingCache.set(cacheKey, embedding);
 			}
 			const completeField = {
 				...message.field,
@@ -220,9 +226,9 @@ async function handleMessage(
 				const results = await Promise.all(
 					chunk.map(async (cand) => {
 						try {
-							// Cache by truncated key (first 512 chars) to match what actually
+							// Cache by normalized key (first 512 chars) to match what actually
 							// gets embedded — avoids cache misses and redundant embedding calls
-							const cacheKey = cand.text.slice(0, 512);
+							const cacheKey = getEmbeddingCacheKey(cand.text);
 							let embedding = sessionEmbeddingCache.get(cacheKey);
 							if (!embedding) {
 								embedding = await generateEmbedding(cand.text);
