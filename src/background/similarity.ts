@@ -43,12 +43,16 @@ interface SimilarityCandidate {
 	metadata?: CandidateMetadata;
 }
 
-interface RankedCandidate {
+export interface RankedCandidate {
 	textContent: string;
 	cssSelector: string;
 	xpathSelector: string;
 	score: number;
 	confidence: "HIGH" | "MEDIUM" | "LOW";
+	tagName?: string;
+	depth?: number;
+	isLeaf?: boolean;
+	ancestorContext?: string[];
 }
 
 // ───────────────────────────────────────────────
@@ -207,6 +211,10 @@ export function rankCandidates(
 					xpathSelector: c.xpathSelector,
 					score: combinedScore,
 					confidence,
+					tagName: c.tagName,
+					depth: c.metadata.depth,
+					isLeaf: c.metadata.isLeaf,
+					ancestorContext: c.metadata.ancestorContext,
 				};
 			}
 
@@ -223,6 +231,10 @@ export function rankCandidates(
 				xpathSelector: c.xpathSelector,
 				score: embeddingScore,
 				confidence,
+				tagName: c.tagName,
+				depth: c.metadata?.depth,
+				isLeaf: c.metadata?.isLeaf,
+				ancestorContext: c.metadata?.ancestorContext,
 			};
 		})
 		.sort((a, b) => b.score - a.score)

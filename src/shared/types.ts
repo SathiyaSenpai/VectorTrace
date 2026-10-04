@@ -31,6 +31,10 @@ export interface SimilarityCandidate {
 	score: number; // cosine similarity 0-1
 	confidence: "HIGH" | "MEDIUM" | "LOW";
 	element?: Element; // only available in content script context
+	tagName?: string;
+	depth?: number;
+	isLeaf?: boolean;
+	ancestorContext?: string[];
 }
 
 /**

@@ -76,6 +76,10 @@ export function useAutoHeal(schemaId: string | undefined) {
 						cssSelector: best.cssSelector,
 						xpathSelector: best.xpathSelector,
 						textContent: best.textContent,
+						tagName: best.tagName,
+						depth: best.depth,
+						isLeaf: best.isLeaf,
+						ancestorContext: best.ancestorContext,
 						embedding: embedResponse.embedding,
 					});
 

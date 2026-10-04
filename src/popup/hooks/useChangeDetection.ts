@@ -83,6 +83,10 @@ export function useChangeDetection(schemaId: string | undefined, onSchemaUpdated
 					cssSelector: candidate.cssSelector,
 					xpathSelector: candidate.xpathSelector,
 					textContent: candidate.textContent,
+					tagName: candidate.tagName,
+					depth: candidate.depth,
+					isLeaf: candidate.isLeaf,
+					ancestorContext: candidate.ancestorContext,
 					embedding,
 				});
 
