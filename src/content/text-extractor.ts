@@ -145,8 +145,11 @@ function findElementOnPage(storedText: string, storedTagName: string): Element |
 	const fuzzyMatches: { el: Element; text: string }[] = [];
 
 	for (const { el, text } of visibleElements) {
-		if (text === normalizedStored) exactMatches.push({ el, text });
-		else if (isTextMatch(storedText, text)) fuzzyMatches.push({ el, text });
+		if (text === normalizedStored) {
+			exactMatches.push({ el, text });
+		} else if (storedText.trim().length >= 10 && isTextMatch(storedText, text)) {
+			fuzzyMatches.push({ el, text });
+		}
 	}
 
 	// Pick best: prefer matching tagName, then smallest textContent (most leaf-like/specific)
@@ -250,15 +253,21 @@ export async function extractFields(fields: ExtractFieldInput[]): Promise<Extrac
 					};
 				}
 
-				const pageMatch = findElementOnPage(field.textContent, field.tagName);
-
-				if (pageMatch) {
-					return {
-						fieldId: field.fieldId,
-						label: field.label,
-						value: pageMatch.textContent?.trim() || "",
-						status: "OK" as const,
-					};
+				// Only fallback to searching the whole page if the tag drifted or if storedText
+				// is sufficiently long/distinctive (e.g. paragraphs shifted by nth-of-type changes).
+				// For short texts (prices, counts, short status) where the expected tag still matches,
+				// the content has genuinely updated and should not match a random duplicate elsewhere.
+				const isLongOrDistinctive = (field.textContent || "").trim().length >= 20;
+				if (!tagOk || isLongOrDistinctive) {
+					const pageMatch = findElementOnPage(field.textContent, field.tagName);
+					if (pageMatch) {
+						return {
+							fieldId: field.fieldId,
+							label: field.label,
+							value: pageMatch.textContent?.trim() || "",
+							status: "OK" as const,
+						};
+					}
 				}
 
 				if (!tagOk) {
