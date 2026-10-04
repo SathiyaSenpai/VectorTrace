@@ -345,18 +345,37 @@ export function getDomDepth(el: Element): number {
 	return depth;
 }
 
+const UTILITY_EXACT_NAMES = new Set([
+	"flex", "inline-flex", "grid", "inline-grid", "block", "inline-block", "inline",
+	"relative", "absolute", "fixed", "sticky", "static", "hidden",
+	"border", "rounded", "shadow", "transition", "transform",
+	"container", "row", "col", "clearfix", "truncate", "antialiased",
+]);
+
+const UTILITY_PREFIX_REGEX = /^(p[xytblr]?|m[xytblr]?|w|h|min-w|min-h|max-w|max-h|gap|space-[xy]|items|justify|content|self|text|font|bg|border|rounded|shadow|opacity|z|overflow|cursor|leading|tracking|transition|duration|ease|col-span|row-span|grid-cols|grid-rows)-/i;
+
+function isUtilityClass(cls: string): boolean {
+	const lower = cls.toLowerCase();
+	const baseClass = lower.includes(":") ? lower.split(":").pop()! : lower;
+	if (UTILITY_EXACT_NAMES.has(baseClass)) return true;
+	if (UTILITY_PREFIX_REGEX.test(baseClass)) return true;
+	return false;
+}
+
 /**
  * Collects relevant class names and data attributes from the element
  * and its nearest ancestors (up to 3 levels) for structural context matching.
+ * Utility styling classes (Tailwind/Bootstrap layout, spacing, colors) are filtered
+ * out so only semantic, component-identifying classes are kept.
  */
 export function getAncestorContext(el: Element, levels = 3): string[] {
 	const ctx: string[] = [];
 	let current: Element | null = el;
 	for (let i = 0; i < levels && current && current !== document.body; i++) {
-		// Collect class names
+		// Collect class names, filtering out generic layout/utility classes
 		if (current.className && typeof current.className === "string") {
 			for (const cls of current.className.split(/\s+/)) {
-				if (cls && cls.length > 1 && cls.length < 50) {
+				if (cls && cls.length > 1 && cls.length < 50 && !isUtilityClass(cls)) {
 					ctx.push(cls);
 				}
 			}
