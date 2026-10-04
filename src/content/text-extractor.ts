@@ -427,11 +427,15 @@ export function enumeratePageElements(): EnumeratedElement[] {
 		},
 	});
 
+	const INTERACTIVE_OR_SEMANTIC_CONTAINERS = new Set([
+		"a", "button", "h1", "h2", "h3", "h4", "h5", "h6", "label", "p", "summary"
+	]);
+
 	let node = walker.nextNode();
 	while (node) {
 		const el = node as HTMLElement;
 		const isLeaf = isLeafTextElement(el);
-		const text = el.textContent?.trim() || "";
+		const text = (el.innerText ?? el.textContent)?.trim() || "";
 
 		if (text.length >= 2) {
 			candidates.push({ text, element: el, isLeaf });
@@ -445,7 +449,7 @@ export function enumeratePageElements(): EnumeratedElement[] {
 	// approach:
 	// 1. Collect all leaf elements first (these are most precise)
 	// 2. Add parent/container elements only if they provide unique text
-	//    not already covered by any leaf element
+	//    or represent interactive/semantic containers (a, button, headings, etc.)
 
 	const leafCandidates: { text: string; element: HTMLElement; isLeaf: boolean }[] = [];
 	const nonLeafCandidates: { text: string; element: HTMLElement; isLeaf: boolean }[] = [];
@@ -483,17 +487,20 @@ export function enumeratePageElements(): EnumeratedElement[] {
 		});
 	}
 
-	// Non-leaf deduplication: keep only unique text not already covered by any leaf
+	// Non-leaf deduplication: keep unique text, or distinct interactive/semantic containers
 	const nonLeafMap = new Map<string, HTMLElement>();
 	for (const cand of nonLeafCandidates) {
-		if (leafTexts.has(cand.text)) continue;
-		const existing = nonLeafMap.get(cand.text);
+		const tag = cand.element.tagName.toLowerCase();
+		const isSemanticContainer = INTERACTIVE_OR_SEMANTIC_CONTAINERS.has(tag);
+		if (leafTexts.has(cand.text) && !isSemanticContainer) continue;
+		const dedupeKey = isSemanticContainer ? `${tag}:${cand.text}` : cand.text;
+		const existing = nonLeafMap.get(dedupeKey);
 		if (existing) {
 			if (existing.contains(cand.element)) {
-				nonLeafMap.set(cand.text, cand.element);
+				nonLeafMap.set(dedupeKey, cand.element);
 			}
 		} else {
-			nonLeafMap.set(cand.text, cand.element);
+			nonLeafMap.set(dedupeKey, cand.element);
 		}
 	}
 
