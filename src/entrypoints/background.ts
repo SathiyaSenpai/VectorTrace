@@ -1,5 +1,8 @@
 import { generateEmbedding } from "../background/embedding-pipeline";
-import { cosineSimilarity, rankCandidates, type StoredFieldContext } from "../background/similarity";
+import {
+	rankCandidates,
+	type StoredFieldContext,
+} from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
 import { getFieldEmbedding, saveFieldEmbedding } from "../shared/idb-store";
 import { sendMessageWithRetry } from "../shared/messaging";
@@ -191,9 +194,7 @@ async function handleMessage(
 			};
 			const response = (await sendMessageWithRetry(tab.id, {
 				type: "ENUMERATE_PAGE",
-			})) as
-				| { candidates?: EnumeratedCandidate[] }
-				| undefined;
+			})) as { candidates?: EnumeratedCandidate[] } | undefined;
 
 			const candidates = response?.candidates;
 			if (!candidates || !Array.isArray(candidates)) {
@@ -241,12 +242,15 @@ async function handleMessage(
 								tagName: cand.tagName || "",
 								embedding,
 								// Pass structural metadata for multi-signal ranking
-								metadata: cand.depth !== undefined ? {
-									depth: cand.depth,
-									isLeaf: cand.isLeaf ?? true,
-									textLength: cand.textLength ?? cand.text.length,
-									ancestorContext: cand.ancestorContext ?? [],
-								} : undefined,
+								metadata:
+									cand.depth !== undefined
+										? {
+												depth: cand.depth,
+												isLeaf: cand.isLeaf ?? true,
+												textLength: cand.textLength ?? cand.text.length,
+												ancestorContext: cand.ancestorContext ?? [],
+											}
+										: undefined,
 							};
 						} catch (err) {
 							console.error(`[background] Failed to embed text chunk: "${cand.text}"`, err);

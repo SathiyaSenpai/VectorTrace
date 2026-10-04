@@ -355,17 +355,39 @@ export function getDomDepth(el: Element): number {
 }
 
 const UTILITY_EXACT_NAMES = new Set([
-	"flex", "inline-flex", "grid", "inline-grid", "block", "inline-block", "inline",
-	"relative", "absolute", "fixed", "sticky", "static", "hidden",
-	"border", "rounded", "shadow", "transition", "transform",
-	"container", "row", "col", "clearfix", "truncate", "antialiased",
+	"flex",
+	"inline-flex",
+	"grid",
+	"inline-grid",
+	"block",
+	"inline-block",
+	"inline",
+	"relative",
+	"absolute",
+	"fixed",
+	"sticky",
+	"static",
+	"hidden",
+	"border",
+	"rounded",
+	"shadow",
+	"transition",
+	"transform",
+	"container",
+	"row",
+	"col",
+	"clearfix",
+	"truncate",
+	"antialiased",
 ]);
 
-const UTILITY_PREFIX_REGEX = /^(p[xytblr]?|m[xytblr]?|w|h|min-w|min-h|max-w|max-h|gap|space-[xy]|items|justify|content|self|text|font|bg|border|rounded|shadow|opacity|z|overflow|cursor|leading|tracking|transition|duration|ease|col-span|row-span|grid-cols|grid-rows)-/i;
+const UTILITY_PREFIX_REGEX =
+	/^(p[xytblr]?|m[xytblr]?|w|h|min-w|min-h|max-w|max-h|gap|space-[xy]|items|justify|content|self|text|font|bg|border|rounded|shadow|opacity|z|overflow|cursor|leading|tracking|transition|duration|ease|col-span|row-span|grid-cols|grid-rows)-/i;
 
 function isUtilityClass(cls: string): boolean {
 	const lower = cls.toLowerCase();
-	const baseClass = lower.includes(":") ? lower.split(":").pop()! : lower;
+	const parts = lower.split(":");
+	const baseClass = parts[parts.length - 1] || lower;
 	if (UTILITY_EXACT_NAMES.has(baseClass)) return true;
 	if (UTILITY_PREFIX_REGEX.test(baseClass)) return true;
 	return false;
@@ -433,7 +455,12 @@ export function enumeratePageElements(): EnumeratedElement[] {
 			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 			if (!isTest) {
 				// Cheap fast-path rejection before calling getComputedStyle (expensive on large DOMs)
-				if (el.offsetHeight === 0 && el.offsetWidth === 0 && el.tagName !== "BODY" && el.tagName !== "HTML") {
+				if (
+					el.offsetHeight === 0 &&
+					el.offsetWidth === 0 &&
+					el.tagName !== "BODY" &&
+					el.tagName !== "HTML"
+				) {
 					// Skip zero-size elements early — getComputedStyle confirms if needed
 					const quickStyle = window.getComputedStyle(el);
 					if (quickStyle.position !== "fixed" && quickStyle.position !== "sticky") {
@@ -456,7 +483,17 @@ export function enumeratePageElements(): EnumeratedElement[] {
 	});
 
 	const INTERACTIVE_OR_SEMANTIC_CONTAINERS = new Set([
-		"a", "button", "h1", "h2", "h3", "h4", "h5", "h6", "label", "p", "summary"
+		"a",
+		"button",
+		"h1",
+		"h2",
+		"h3",
+		"h4",
+		"h5",
+		"h6",
+		"label",
+		"p",
+		"summary",
 	]);
 
 	let node = walker.nextNode();

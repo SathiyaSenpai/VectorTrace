@@ -73,9 +73,11 @@ function tagMatchScore(storedTag: string, candidateTag: string): number {
 	const headings = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 	const inline = new Set(["span", "a", "em", "strong", "b", "i", "small", "label"]);
 	const block = new Set(["div", "p", "section", "article", "main", "li", "td", "th"]);
-	if ((headings.has(a) && headings.has(b)) ||
+	if (
+		(headings.has(a) && headings.has(b)) ||
 		(inline.has(a) && inline.has(b)) ||
-		(block.has(a) && block.has(b))) {
+		(block.has(a) && block.has(b))
+	) {
 		return 0.7;
 	}
 	return 0.0;
@@ -90,7 +92,7 @@ function textLengthScore(storedLen: number, candidateLen: number): number {
 	if (storedLen === 0 || candidateLen === 0) return 0.0;
 	const ratio = Math.min(storedLen, candidateLen) / Math.max(storedLen, candidateLen);
 	// Apply a power curve to penalize large divergences more heavily
-	return Math.pow(ratio, 0.5);
+	return ratio ** 0.5;
 }
 
 /**
@@ -110,8 +112,8 @@ function depthScore(storedDepth: number, candidateDepth: number): number {
  */
 function leafScore(storedIsLeaf: boolean, candidateIsLeaf: boolean): number {
 	if (storedIsLeaf && candidateIsLeaf) return 1.0;
-	if (storedIsLeaf && !candidateIsLeaf) return 0.2;  // heavy penalty for non-leaf when we want leaf
-	if (!storedIsLeaf && candidateIsLeaf) return 0.7;   // slight bonus — leaves are generally safer
+	if (storedIsLeaf && !candidateIsLeaf) return 0.2; // heavy penalty for non-leaf when we want leaf
+	if (!storedIsLeaf && candidateIsLeaf) return 0.7; // slight bonus — leaves are generally safer
 	return 0.8; // both non-leaf: neutral-ish
 }
 
@@ -179,13 +181,13 @@ function selectorSimilarityScore(storedSel: string, candidateSel: string): numbe
  * proximity and structural indicators.
  */
 const WEIGHTS = {
-	embedding:          0.50,   // Semantic similarity (cosine)
-	selectorSimilarity: 0.15,   // Positional / subtree proximity to original selector
-	tagMatch:           0.10,   // HTML tag match
-	textLength:         0.10,   // Text length similarity
-	leaf:               0.08,   // Leaf element preference
-	ancestorContext:    0.05,   // Ancestor structural context overlap
-	depth:              0.02,   // DOM depth similarity
+	embedding: 0.5, // Semantic similarity (cosine)
+	selectorSimilarity: 0.15, // Positional / subtree proximity to original selector
+	tagMatch: 0.1, // HTML tag match
+	textLength: 0.1, // Text length similarity
+	leaf: 0.08, // Leaf element preference
+	ancestorContext: 0.05, // Ancestor structural context overlap
+	depth: 0.02, // DOM depth similarity
 };
 
 /**
@@ -218,7 +220,7 @@ export function rankCandidates(
 				const rawEmbedding = Math.max(0, embeddingScore);
 				// Semantic gate: heavily damp structural contribution when semantic match is weak (<0.30)
 				// to prevent completely unrelated strings from outscoring real matches via structural coincidence.
-				const semanticGate = rawEmbedding < 0.30 ? Math.max(0, rawEmbedding / 0.30) : 1.0;
+				const semanticGate = rawEmbedding < 0.3 ? Math.max(0, rawEmbedding / 0.3) : 1.0;
 
 				const signals = {
 					tagMatch: tagMatchScore(storedFieldContext.tagName, c.tagName || ""),
@@ -250,9 +252,9 @@ export function rankCandidates(
 				// Confidence thresholds adjusted for multi-signal scores
 				// Multi-signal max is 1.0, typical good match is 0.65-0.85
 				const confidence =
-					combinedScore >= 0.70
+					combinedScore >= 0.7
 						? ("HIGH" as const)
-						: combinedScore >= 0.50
+						: combinedScore >= 0.5
 							? ("MEDIUM" as const)
 							: ("LOW" as const);
 

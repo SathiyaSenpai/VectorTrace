@@ -1,6 +1,12 @@
 import { ElementPicker } from "../content/element-picker";
 import { generateCSSSelector, generateXPath } from "../content/selector-generator";
-import { enumeratePageElements, extractFields, getDomDepth, getAncestorContext, isLeafTextElement } from "../content/text-extractor";
+import {
+	enumeratePageElements,
+	extractFields,
+	getAncestorContext,
+	getDomDepth,
+	isLeafTextElement,
+} from "../content/text-extractor";
 import { getSchema } from "../shared/chrome-storage";
 import { consumePendingHeals } from "../shared/heal-tracker";
 import type { ExtractionResult, MessageType } from "../shared/types";
