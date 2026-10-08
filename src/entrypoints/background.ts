@@ -1,8 +1,5 @@
 import { generateEmbedding } from "../background/embedding-pipeline";
-import {
-	rankCandidates,
-	type StoredFieldContext,
-} from "../background/similarity";
+import { rankCandidates, type StoredFieldContext } from "../background/similarity";
 import { getSchema, saveSchema } from "../shared/chrome-storage";
 import { getFieldEmbedding, saveFieldEmbedding } from "../shared/idb-store";
 import { sendMessageWithRetry } from "../shared/messaging";

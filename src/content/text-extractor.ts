@@ -22,7 +22,7 @@ export function querySelectorDeep(
 				return null;
 			}
 		} else {
-			const targetRoot = current.shadowRoot || current;
+			const targetRoot: Element | ShadowRoot = current.shadowRoot || current;
 			try {
 				current = targetRoot.querySelector(part);
 			} catch {
@@ -263,19 +263,8 @@ export interface ExtractFieldResult {
 }
 
 export async function extractFields(fields: ExtractFieldInput[]): Promise<ExtractFieldResult[]> {
-	const pageEmpty = isPageEffectivelyEmpty();
-
 	return Promise.all(
 		fields.map(async (field) => {
-			if (pageEmpty) {
-				return {
-					fieldId: field.fieldId,
-					label: field.label,
-					value: "",
-					status: "EMPTY_PAGE" as const,
-				};
-			}
-
 			let element: Element | null = null;
 			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 			const timeout = isTest ? 50 : 3000;
@@ -364,6 +353,15 @@ export async function extractFields(fields: ExtractFieldInput[]): Promise<Extrac
 					value: extractedText,
 					status: "TEXT_CONTENT_CHANGED" as const,
 					storedText: field.textContent,
+				};
+			}
+
+			if (isPageEffectivelyEmpty()) {
+				return {
+					fieldId: field.fieldId,
+					label: field.label,
+					value: "",
+					status: "EMPTY_PAGE" as const,
 				};
 			}
 
