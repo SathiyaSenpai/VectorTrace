@@ -93,7 +93,22 @@ function truncateCSSSelector(selector: string, target: Element): string {
 		}
 	}
 
-	return selector.slice(0, 500);
+	// Suffix fallback: collect trailing valid segments to avoid mid-token syntax errors
+	const allParts = selector.split(" > ");
+	const validSuffix: string[] = [];
+	let currentLen = 0;
+	for (let i = allParts.length - 1; i >= 0; i--) {
+		const partLen = allParts[i].length + (validSuffix.length > 0 ? 3 : 0);
+		if (currentLen + partLen > 500) break;
+		validSuffix.unshift(allParts[i]);
+		currentLen += partLen;
+	}
+
+	if (validSuffix.length > 0) {
+		return validSuffix.join(" > ");
+	}
+
+	return getTagName(target);
 }
 
 /**
@@ -128,7 +143,22 @@ function truncateXPath(xpath: string, target: Element): string {
 		}
 	}
 
-	return xpath.slice(0, 500);
+	// Suffix fallback: collect trailing valid slash segments
+	const allSubParts = xpath.replace(/^\/html\/body\//, "").split("/");
+	const validSuffix: string[] = [];
+	let currentLen = 2; // for "//"
+	for (let i = allSubParts.length - 1; i >= 0; i--) {
+		const partLen = allSubParts[i].length + 1;
+		if (currentLen + partLen > 500) break;
+		validSuffix.unshift(allSubParts[i]);
+		currentLen += partLen;
+	}
+
+	if (validSuffix.length > 0) {
+		return `//${validSuffix.join("/")}`;
+	}
+
+	return `//${getTagName(target)}`;
 }
 
 /**
