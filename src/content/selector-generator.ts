@@ -73,7 +73,7 @@ function generateFullPathSelector(element: Element): string {
  * while verifying that the shortened selector remains unique to the target element.
  */
 function truncateCSSSelector(selector: string, target: Element): string {
-	if (selector.length <= 500) {
+	if (selector.length <= 500 || selector.includes(">>>")) {
 		return selector;
 	}
 
@@ -197,12 +197,96 @@ export function isStableId(id: string): boolean {
 	return true;
 }
 
+function generateLocalCSSSelector(element: Element, root: ShadowRoot): string | null {
+	if (element.id && isStableId(element.id)) {
+		try {
+			const escapedId = escapeCSSIdentifier(element.id);
+			const selector = `#${escapedId}`;
+			if (root.querySelectorAll(selector).length === 1) {
+				return selector;
+			}
+		} catch (_e) {
+			// fallback
+		}
+	}
+
+	for (const attr of Array.from(element.attributes)) {
+		if (attr.name.startsWith("data-")) {
+			try {
+				const tagName = getTagName(element);
+				const selector = `${tagName}[${attr.name}="${escapeCSSIdentifier(attr.value)}"]`;
+				if (root.querySelectorAll(selector).length === 1) {
+					return selector;
+				}
+			} catch (_e) {
+				// fallback
+			}
+		}
+	}
+
+	const path: string[] = [];
+	let current: Element | null = element;
+	while (current && current !== (root as unknown as Element)) {
+		if (current.id && isStableId(current.id)) {
+			try {
+				const escapedId = escapeCSSIdentifier(current.id);
+				const selector = `#${escapedId}`;
+				if (root.querySelectorAll(selector).length === 1) {
+					path.unshift(selector);
+					break;
+				}
+			} catch (_e) {
+				// continue
+			}
+		}
+
+		const tagName = getTagName(current);
+		let nth = 1;
+		let hasSiblingsWithSameTag = false;
+
+		let sib = current.previousElementSibling;
+		while (sib) {
+			if (sib.tagName === current.tagName) {
+				nth++;
+			}
+			sib = sib.previousElementSibling;
+		}
+
+		sib = current.nextElementSibling;
+		while (sib) {
+			if (sib.tagName === current.tagName) {
+				hasSiblingsWithSameTag = true;
+				break;
+			}
+			sib = sib.nextElementSibling;
+		}
+
+		const segment = hasSiblingsWithSameTag || nth > 1 ? `${tagName}:nth-of-type(${nth})` : tagName;
+		path.unshift(segment);
+		current = current.parentElement;
+	}
+
+	return path.join(" > ");
+}
+
 /**
  * Generates a unique CSS Selector for the given element.
  */
 export function generateCSSSelector(element: Element): string | null {
 	if (isCrossOriginIframe(element)) {
 		return null;
+	}
+
+	const rootNode = element.getRootNode?.();
+	if (typeof ShadowRoot !== "undefined" && rootNode instanceof ShadowRoot) {
+		const host = rootNode.host;
+		if (host) {
+			const hostSelector = generateCSSSelector(host);
+			const innerSelector = generateLocalCSSSelector(element, rootNode);
+			if (hostSelector && innerSelector) {
+				return `${hostSelector} >>> ${innerSelector}`;
+			}
+		}
 	}
 
 	const doc = element.ownerDocument;
@@ -308,6 +392,11 @@ export function generateCSSSelector(element: Element): string | null {
  */
 export function generateXPath(element: Element): string | null {
 	if (isCrossOriginIframe(element)) {
+		return null;
+	}
+
+	const rootNode = element.getRootNode?.();
+	if (typeof ShadowRoot !== "undefined" && rootNode instanceof ShadowRoot) {
 		return null;
 	}
 

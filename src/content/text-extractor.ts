@@ -1,13 +1,46 @@
 import type { ExtractionStatus } from "../shared/types";
 import { generateCSSSelector, generateXPath } from "./selector-generator";
 
+export function querySelectorDeep(
+	selector: string,
+	root: Document | Element | ShadowRoot = document,
+): Element | null {
+	if (!selector.includes(">>>")) {
+		try {
+			return root.querySelector(selector);
+		} catch {
+			return null;
+		}
+	}
+	const parts = selector.split(">>>").map((p) => p.trim());
+	let current: Element | null = null;
+	for (const part of parts) {
+		if (!current) {
+			try {
+				current = root.querySelector(part);
+			} catch {
+				return null;
+			}
+		} else {
+			const targetRoot = current.shadowRoot || current;
+			try {
+				current = targetRoot.querySelector(part);
+			} catch {
+				return null;
+			}
+		}
+		if (!current) return null;
+	}
+	return current;
+}
+
 function waitForElement(selector: string, timeout = 1000): Promise<Element | null> {
 	return new Promise((resolve) => {
-		const el = document.querySelector(selector);
+		const el = querySelectorDeep(selector);
 		if (el) return resolve(el);
 
 		const observer = new MutationObserver(() => {
-			const elMutated = document.querySelector(selector);
+			const elMutated = querySelectorDeep(selector);
 			if (elMutated) {
 				observer.disconnect();
 				clearTimeout(timer);
@@ -141,9 +174,25 @@ function findElementOnPage(storedText: string, storedTagName: string): Element |
 	const normalizedStored = normalizeText(storedText);
 	const tag = storedTagName?.toLowerCase() || "";
 
-	const elements = tag
-		? document.body.getElementsByTagName(tag)
-		: document.body.querySelectorAll("*");
+	const elements: Element[] = [];
+	const roots: (Element | ShadowRoot)[] = [document.body];
+	const visitedRoots = new Set<Element | ShadowRoot>();
+
+	while (roots.length > 0) {
+		const currentRoot = roots.shift();
+		if (!currentRoot || visitedRoots.has(currentRoot)) continue;
+		visitedRoots.add(currentRoot);
+
+		const els = tag ? currentRoot.querySelectorAll(tag) : currentRoot.querySelectorAll("*");
+
+		for (let i = 0; i < els.length; i++) {
+			const el = els[i];
+			elements.push(el);
+			if (el.shadowRoot && !visitedRoots.has(el.shadowRoot)) {
+				roots.push(el.shadowRoot);
+			}
+		}
+	}
 
 	const visibleElements: { el: Element; text: string }[] = [];
 	for (let i = 0; i < elements.length; i++) {
@@ -353,11 +402,11 @@ function getOwnText(el: HTMLElement): string {
  * direct text nodes (child elements have negligible text).
  */
 export function isLeafTextElement(el: HTMLElement): boolean {
-	if (el.children.length === 0) return true;
+	if (el.children.length === 0 && !el.shadowRoot) return true;
 	const fullText = (el.textContent || "").trim();
 	const ownText = getOwnText(el);
 	// If own text accounts for most of the content, treat as leaf
-	if (fullText.length > 0 && ownText.length / fullText.length >= 0.8) return true;
+	if (fullText.length > 0 && ownText.length / fullText.length >= 0.8 && !el.shadowRoot) return true;
 	return false;
 }
 
@@ -369,7 +418,16 @@ export function getDomDepth(el: Element): number {
 	let current: Element | null = el;
 	while (current && current !== document.body && current !== document.documentElement) {
 		depth++;
-		current = current.parentElement;
+		if (current.parentElement) {
+			current = current.parentElement;
+		} else {
+			const root = current.getRootNode?.();
+			if (root && root !== current && "host" in root) {
+				current = (root as ShadowRoot).host as Element;
+			} else {
+				current = null;
+			}
+		}
 	}
 	return depth;
 }
@@ -437,7 +495,16 @@ export function getAncestorContext(el: Element, levels = 3): string[] {
 				ctx.push(`${attr.name}=${attr.value}`);
 			}
 		}
-		current = current.parentElement;
+		if (current.parentElement) {
+			current = current.parentElement;
+		} else {
+			const root = current.getRootNode?.();
+			if (root && root !== current && "host" in root) {
+				current = (root as ShadowRoot).host as Element;
+			} else {
+				current = null;
+			}
+		}
 	}
 	return ctx;
 }
@@ -457,52 +524,65 @@ export interface EnumeratedElement {
 	ancestorContext: string[];
 }
 
+const INTERACTIVE_OR_SEMANTIC_CONTAINERS = new Set([
+	"a",
+	"button",
+	"h1",
+	"h2",
+	"h3",
+	"h4",
+	"h5",
+	"h6",
+	"label",
+	"p",
+	"summary",
+]);
+
 export function enumeratePageElements(): EnumeratedElement[] {
 	if (!document.body) return [];
 
 	const candidates: { text: string; element: HTMLElement; isLeaf: boolean }[] = [];
 
-	const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
-		acceptNode(node) {
+	const roots: (Element | ShadowRoot)[] = [document.body];
+	const visitedRoots = new Set<Element | ShadowRoot>();
+
+	while (roots.length > 0) {
+		const currentRoot = roots.shift();
+		if (!currentRoot || visitedRoots.has(currentRoot)) continue;
+		visitedRoots.add(currentRoot);
+
+		const walker = document.createTreeWalker(currentRoot, NodeFilter.SHOW_ELEMENT, {
+			acceptNode(node) {
+				const el = node as HTMLElement;
+				const tag = el.tagName?.toLowerCase() || "";
+				if (["script", "style", "noscript", "meta", "head"].includes(tag)) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				if (el.hasAttribute?.("data-vectortrace")) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				if (isElementHidden(el)) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				return NodeFilter.FILTER_ACCEPT;
+			},
+		});
+
+		let node = walker.nextNode();
+		while (node) {
 			const el = node as HTMLElement;
-			const tag = el.tagName.toLowerCase();
-			if (["script", "style", "noscript", "meta", "head"].includes(tag)) {
-				return NodeFilter.FILTER_REJECT;
+			if (el.shadowRoot && !visitedRoots.has(el.shadowRoot)) {
+				roots.push(el.shadowRoot);
 			}
-			if (el.hasAttribute("data-vectortrace")) {
-				return NodeFilter.FILTER_REJECT;
+
+			const isLeaf = isLeafTextElement(el);
+			const text = (el.innerText ?? el.textContent)?.trim() || "";
+
+			if (text.length >= 2) {
+				candidates.push({ text, element: el, isLeaf });
 			}
-			if (isElementHidden(el)) {
-				return NodeFilter.FILTER_REJECT;
-			}
-			return NodeFilter.FILTER_ACCEPT;
-		},
-	});
-
-	const INTERACTIVE_OR_SEMANTIC_CONTAINERS = new Set([
-		"a",
-		"button",
-		"h1",
-		"h2",
-		"h3",
-		"h4",
-		"h5",
-		"h6",
-		"label",
-		"p",
-		"summary",
-	]);
-
-	let node = walker.nextNode();
-	while (node) {
-		const el = node as HTMLElement;
-		const isLeaf = isLeafTextElement(el);
-		const text = (el.innerText ?? el.textContent)?.trim() || "";
-
-		if (text.length >= 2) {
-			candidates.push({ text, element: el, isLeaf });
+			node = walker.nextNode();
 		}
-		node = walker.nextNode();
 	}
 
 	// === IMPROVED DEDUPLICATION ===
