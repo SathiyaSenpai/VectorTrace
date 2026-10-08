@@ -68,7 +68,19 @@ function isPageEffectivelyEmpty(): boolean {
 	return text.length < 20;
 }
 
-function isElementHidden(element: Element): boolean {
+export function isElementHidden(element: Element): boolean {
+	// Modern browser standard check (Chrome 105+, Edge, Safari, Firefox)
+	if (typeof element.checkVisibility === "function") {
+		try {
+			return !element.checkVisibility({
+				checkOpacity: true,
+				checkVisibilityCSS: true,
+			});
+		} catch {
+			// Fallback if checkVisibility fails on detached/virtual node
+		}
+	}
+
 	const htmlEl = element as HTMLElement;
 	const style = window.getComputedStyle(htmlEl);
 	if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
@@ -79,9 +91,17 @@ function isElementHidden(element: Element): boolean {
 		return false;
 	}
 
-	if (htmlEl.offsetParent === null && htmlEl.tagName !== "BODY" && htmlEl.tagName !== "HTML") {
-		if (style.position !== "fixed" && style.position !== "sticky") {
-			return true;
+	const isSvg =
+		element.namespaceURI === "http://www.w3.org/2000/svg" ||
+		(typeof SVGElement !== "undefined" && element instanceof SVGElement);
+	const isDisplayContents = style.display === "contents";
+
+	// SVG elements and display:contents have null offsetParent by spec even when fully visible
+	if (!isSvg && !isDisplayContents) {
+		if (htmlEl.offsetParent === null && htmlEl.tagName !== "BODY" && htmlEl.tagName !== "HTML") {
+			if (style.position !== "fixed" && style.position !== "sticky") {
+				return true;
+			}
 		}
 	}
 	return false;
@@ -452,31 +472,8 @@ export function enumeratePageElements(): EnumeratedElement[] {
 			if (el.hasAttribute("data-vectortrace")) {
 				return NodeFilter.FILTER_REJECT;
 			}
-			const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
-			if (!isTest) {
-				// Cheap fast-path rejection before calling getComputedStyle (expensive on large DOMs)
-				if (
-					el.offsetHeight === 0 &&
-					el.offsetWidth === 0 &&
-					el.tagName !== "BODY" &&
-					el.tagName !== "HTML"
-				) {
-					// Skip zero-size elements early — getComputedStyle confirms if needed
-					const quickStyle = window.getComputedStyle(el);
-					if (quickStyle.position !== "fixed" && quickStyle.position !== "sticky") {
-						return NodeFilter.FILTER_REJECT;
-					}
-				}
-			}
-			const style = window.getComputedStyle(el);
-			if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+			if (isElementHidden(el)) {
 				return NodeFilter.FILTER_REJECT;
-			}
-			if (!isTest) {
-				const rect = el.getBoundingClientRect();
-				if (rect.width === 0 && rect.height === 0) {
-					return NodeFilter.FILTER_REJECT;
-				}
 			}
 			return NodeFilter.FILTER_ACCEPT;
 		},
