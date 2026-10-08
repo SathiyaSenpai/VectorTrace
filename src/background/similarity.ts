@@ -69,6 +69,13 @@ function tagMatchScore(storedTag: string, candidateTag: string): number {
 	const a = storedTag.toLowerCase();
 	const b = candidateTag.toLowerCase();
 	if (a === b) return 1.0;
+
+	// Interactive elements frequently swapped in modern component frameworks
+	const interactive = new Set(["a", "button", "summary"]);
+	if (interactive.has(a) && interactive.has(b)) {
+		return 0.85;
+	}
+
 	// Related tag groups
 	const headings = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 	const inline = new Set(["span", "a", "em", "strong", "b", "i", "small", "label"]);
@@ -97,13 +104,12 @@ function textLengthScore(storedLen: number, candidateLen: number): number {
 
 /**
  * DOM depth similarity: rewards candidates at a similar depth in the DOM tree.
- * Returns 1.0 for same depth, decaying as depth difference increases.
+ * Uses a soft rational decay so modern UI wrapper additions do not prematurely penalize valid candidates.
  */
 function depthScore(storedDepth: number, candidateDepth: number): number {
 	if (storedDepth < 0 || candidateDepth < 0) return 0.5; // neutral if unknown
 	const diff = Math.abs(storedDepth - candidateDepth);
-	// Gaussian-like decay: score = exp(-diff²/8)
-	return Math.exp(-(diff * diff) / 8);
+	return 1 / (1 + diff * 0.15);
 }
 
 /**
