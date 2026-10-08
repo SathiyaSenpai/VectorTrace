@@ -140,8 +140,17 @@ export function isElementHidden(element: Element): boolean {
 	return false;
 }
 
-function normalizeText(s: string): string {
-	return s.replace(/\s+/g, " ").trim().toLowerCase();
+export function normalizeText(s: string): string {
+	if (!s) return "";
+	return s
+		.normalize("NFKD")
+		.replace(/[\u2018\u2019\u201A\u201B`]/g, "'")
+		.replace(/[\u201C\u201D\u201E\u201F«»]/g, '"')
+		.replace(/[\u2013\u2014\u2212\u2010\u2011]/g, "-")
+		.replace(/[\u00A0\u202F\u2007\u200B\uFEFF]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.toLowerCase();
 }
 
 function isTextMatch(stored: string, extracted: string): boolean {
