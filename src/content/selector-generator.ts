@@ -142,6 +142,31 @@ function escapeCSSIdentifier(val: string): string {
 	return val.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1");
 }
 
+const DYNAMIC_ID_PATTERNS = [
+	/^:r[0-9a-z]+:$/i, // React 18/19 useId() (:r0:, :r1:)
+	/^(radix|headlessui|chakra|mui|field|menu|popover|dialog)-:r[0-9a-z]+:/i, // Modern UI libraries using React useId
+	/^ember\d+$/i, // Ember auto-generated IDs
+	/^(mat|cdk)-[a-z]+-\d+$/i, // Angular Material / CDK
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, // UUID
+	/\b\d{10,}\b/, // Millisecond timestamps
+	/^__next/i, // Next.js internal IDs
+	/^(input|field|el|comp|gen)-\d+$/i, // Generic numeric counter IDs (input-1, field-2)
+];
+
+/**
+ * Validates whether an ID is semantically stable rather than a runtime-generated
+ * ephemeral identifier from modern frameworks (React useId, Radix, Ember, etc.).
+ */
+export function isStableId(id: string): boolean {
+	if (!id || typeof id !== "string") return false;
+	const trimmed = id.trim();
+	if (trimmed.length < 2 || trimmed.length > 80) return false;
+	for (const pattern of DYNAMIC_ID_PATTERNS) {
+		if (pattern.test(trimmed)) return false;
+	}
+	return true;
+}
+
 /**
  * Generates a unique CSS Selector for the given element.
  */
@@ -152,8 +177,8 @@ export function generateCSSSelector(element: Element): string | null {
 
 	const doc = element.ownerDocument;
 
-	// 1. Unique ID strategy
-	if (element.id) {
+	// 1. Unique ID strategy (only if ID is semantically stable, not a dynamic framework ID)
+	if (element.id && isStableId(element.id)) {
 		try {
 			const escapedId = escapeCSSIdentifier(element.id);
 			const selector = `#${escapedId}`;
@@ -185,7 +210,7 @@ export function generateCSSSelector(element: Element): string | null {
 	let current: Element | null = element;
 
 	while (current && current !== doc.body && current !== doc.documentElement) {
-		if (current.id) {
+		if (current.id && isStableId(current.id)) {
 			try {
 				const escapedId = escapeCSSIdentifier(current.id);
 				const selector = `#${escapedId}`;
